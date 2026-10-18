@@ -1,0 +1,10 @@
+# Test tooling for the Fuel Usage Tracker integration.
+#
+# pytest-homeassistant-custom-component pins the matching Home Assistant core
+# and pytest versions, so it is the only test framework that needs to be listed.
+pytest-homeassistant-custom-component
+
+# The compiled frontend assets. `pip install homeassistant` does not pull them,
+# but the frontend component (a hard dependency of this integration) imports
+# hass_frontend at setup. Must match homeassistant/package_constraints.txt.
+home-assistant-frontend==20260128.6

@@ -154,13 +154,17 @@ class FuelUsage:
     def _legs(self) -> list[tuple[float, float]]:
         """Full-to-full legs as (liters, distance) pairs.
 
-        A leg only counts when both ends are full tank fill-ups with an odometer
-        reading, which is the only way consumption can be measured reliably.
+        Tank-to-tank method: a leg ends at a full tank fill-up with an odometer
+        reading and contains every litre added since the previous full tank,
+        including partial fill-ups in between. A full tank without an odometer
+        reading breaks the chain, because the distance of that leg is unknown.
         """
         legs: list[tuple[float, float]] = []
         previous: tuple[int, float] | None = None
         for index, fill in enumerate(self.fillups):
-            if not fill.full or fill.odometer is None:
+            if not fill.full:
+                continue
+            if fill.odometer is None:
                 previous = None
                 continue
             if previous is not None:

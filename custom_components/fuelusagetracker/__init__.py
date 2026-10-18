@@ -41,6 +41,7 @@ from .const import (
     SERVICE_UPDATE_VEHICLE,
 )
 from .data import FillUp, FuelUsageCoordinator
+from .frontend import async_setup_frontend
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -105,6 +106,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FuelUsageConfigEntry) ->
     entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     _async_register_services(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await async_setup_frontend(hass)
     return True
 
 

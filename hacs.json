@@ -1,0 +1,6 @@
+{
+  "name": "Fuel Usage Tracker",
+  "render_readme": true,
+  "homeassistant": "2026.2.0",
+  "zip_release": false
+}

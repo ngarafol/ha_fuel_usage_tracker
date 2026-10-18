@@ -1,0 +1,113 @@
+{
+  "title": "Fuel Usage Tracker",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add vehicle",
+        "description": "Add a vehicle to track refuelling, cost and consumption for.",
+        "data": {
+          "name": "Vehicle name",
+          "fuel_type": "Fuel type",
+          "engine": "Engine",
+          "odometer": "Baseline odometer"
+        },
+        "data_description": {
+          "name": "Also used as the config entry title and as part of the device name.",
+          "engine": "Free text, for example \"1.6 TDI\". Optional.",
+          "odometer": "Odometer reading when tracking starts, in km. Optional."
+        }
+      }
+    },
+    "error": {
+      "required": "This field is required."
+    },
+    "abort": {
+      "already_configured": "A vehicle with this name already exists."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Vehicle settings",
+        "description": "Change the vehicle name, fuel type, engine or baseline odometer.",
+        "data": {
+          "name": "Vehicle name",
+          "fuel_type": "Fuel type",
+          "engine": "Engine",
+          "odometer": "Baseline odometer"
+        },
+        "data_description": {
+          "name": "Also used as the config entry title and as part of the device name.",
+          "engine": "Free text, for example \"1.6 TDI\". Optional.",
+          "odometer": "Odometer reading when tracking starts, in km. Optional."
+        }
+      }
+    },
+    "error": {
+      "required": "This field is required.",
+      "name_exists": "A vehicle with this name already exists."
+    },
+    "abort": {
+      "already_configured": "A vehicle with this name already exists."
+    }
+  },
+  "selector": {
+    "fuel_type": {
+      "options": {
+        "petrol": "Petrol",
+        "diesel": "Diesel",
+        "lpg": "LPG",
+        "cng": "CNG",
+        "hybrid": "Hybrid",
+        "electric": "Electric",
+        "other": "Other"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "odometer": {
+        "name": "Odometer"
+      },
+      "km_since_last_fill": {
+        "name": "Distance since last fill-up"
+      },
+      "total_distance": {
+        "name": "Total distance"
+      },
+      "total_liters": {
+        "name": "Total liters"
+      },
+      "total_cost": {
+        "name": "Total cost"
+      },
+      "avg_price_per_liter": {
+        "name": "Average price per liter"
+      },
+      "last_fill": {
+        "name": "Last fill-up"
+      },
+      "last_fill_cost": {
+        "name": "Last fill-up cost"
+      },
+      "last_fill_liters": {
+        "name": "Last fill-up liters"
+      },
+      "last_price_per_liter": {
+        "name": "Last price per liter"
+      },
+      "last_consumption": {
+        "name": "Last consumption"
+      },
+      "avg_consumption": {
+        "name": "Average consumption"
+      },
+      "cost_per_km": {
+        "name": "Cost per km"
+      },
+      "fill_count": {
+        "name": "Fill-up count"
+      }
+    }
+  }
+}
