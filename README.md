@@ -65,6 +65,7 @@ Other services:
 | --- | --- |
 | `fuelusagetracker.delete_fillup` | `vehicle`, `fillup_id` (the card confirms before deleting) |
 | `fuelusagetracker.update_vehicle` | `vehicle` + any of `name`, `fuel_type`, `engine`, `odometer` |
+| `fuelusagetracker.export_csv` | `vehicle`, `scope` (`fillups` \| `months` \| `years`), `filename` — see [CSV export](#csv-export) |
 
 Consumption uses the classic **tank-to-tank method**: a measured leg runs from
 one full-tank fill-up with an odometer reading to the next one, and counts every
@@ -96,8 +97,16 @@ For a vehicle named `Passat` (device `fuelusagetracker Passat`):
 | `sensor.fuelusagetracker_passat_cost_this_month` | Fuel cost this month |
 | `sensor.fuelusagetracker_passat_average_consumption_this_month` | L/100 km this month |
 | `sensor.fuelusagetracker_passat_fill_ups_this_month` | Fill-ups this month |
+| `sensor.fuelusagetracker_passat_distance_last_12_months` | km over the trailing 12 months |
+| `sensor.fuelusagetracker_passat_litres_last_12_months` | Litres bought over the trailing 12 months |
+| `sensor.fuelusagetracker_passat_cost_last_12_months` | Fuel cost over the trailing 12 months |
+| `sensor.fuelusagetracker_passat_average_consumption_last_12_months` | L/100 km over the trailing 12 months |
+| `sensor.fuelusagetracker_passat_distance_this_year` | km this calendar year |
+| `sensor.fuelusagetracker_passat_litres_this_year` | Litres bought this calendar year |
+| `sensor.fuelusagetracker_passat_cost_this_year` | Fuel cost this calendar year |
+| `sensor.fuelusagetracker_passat_average_consumption_this_year` | L/100 km this calendar year |
 
-19 sensors per vehicle. These ids are what Home Assistant generates for a
+27 sensors per vehicle. These ids are what Home Assistant generates for a
 vehicle named `Passat` in an English UI; the prefix `sensor.fuelusagetracker_`
 is always the same. Entity ids are only created once, so renaming the vehicle
 afterwards keeps the existing ids (and the card never depends on them — it reads
@@ -112,27 +121,31 @@ the sum. Every entity carries `key`, `vehicle`, `vehicle_name`, `fuel_type` and
 `engine` attributes — the card and your automations can find things without
 hard-coding entity ids.
 
-## Monthly statistics
+## Period statistics: month, year, rolling 12 months
 
-Every vehicle gets the five `*_this_month` sensors above plus a month-by-month
-history for comparison. A month is bucketed by the fill-up date in your Home
-Assistant time zone, so a 00:30 fill-up belongs to the day and month you
-experienced.
+Every vehicle gets three period views, all computed with the same rules:
 
-* `litres`, `cost` and `fill-ups` are what you **bought** that month.
-* `km` and `L/100 km` come from the tank-to-tank legs **closed** in that month
-  (the leg's litres over the leg's kilometres). A month that closes no leg
-  reports `unknown` — never a made-up number.
-* Months without a fill-up are omitted instead of shown as zero.
+* **This month** (`*_this_month`) — five sensors plus the `months` history on
+  `cost_this_month`, which the card renders as a monthly comparison table;
+* **This year** (`*_this_year`) — km, litres, cost and L/100 km for the current
+  calendar year, plus a year-on-year comparison table from the `years` history
+  on `cost_this_year` (10 years kept);
+* **Trailing 12 months** (`*_last_12_months`) — a rolling window that always ends
+  today, so it never resets on the 1st of January. The `window` attribute on
+  those sensors carries the exact range (e.g. `2025-11..2026-10`), including the
+  current, possibly incomplete month.
 
-For automations and dashboards, the `cost_this_month` sensor carries a `months`
-attribute with the newest-first history (up to 24 months), and the card renders
-it as a comparison table with the change against the previous month:
+A period is bucketed by the fill-up date in your Home Assistant time zone. In
+every case `litres`, `cost` and `fill-ups` are what you **bought**, while `km`
+and `L/100 km` come from the tank-to-tank legs **closed** in that period — a
+period that closes no leg reports `unknown` instead of a made-up number, and
+periods without any fill-up are simply absent.
 
-![Monthly comparison table in the card](docs/images/card-monthly-section.png)
-
-If you prefer Home Assistant's own monthly statistics entities, three helper
-lines do the same job natively:
+The `month_*`, `year_*` and `rolling_*` totals deliberately have no state class:
+those values reset or slide, so feeding them into long-term statistics would
+corrupt the sum. Only the `*_avg_consumption` of each period is a measurement.
+For Home Assistant's own period statistics, three helper lines do the job
+natively:
 
 ```yaml
 utility_meter:
@@ -147,6 +160,35 @@ utility_meter:
     cycle: monthly
 ```
 
+## CSV export
+
+```yaml
+service: fuelusagetracker.export_csv
+data:
+  vehicle: Passat      # or the config entry id
+  scope: fillups       # fillups (default) | months | years
+  filename: passat.csv # optional; a plain .csv name, no directories
+```
+
+The service writes UTF-8 (with BOM, so Excel reads Croatian station names) into
+your Home Assistant config directory — default
+`fuelusagetracker_passat_fillups.csv` — and returns `{"path": ..., "rows": ...}`:
+
+```yaml
+- service: fuelusagetracker.export_csv
+  data:
+    vehicle: Passat
+    scope: months
+  response_variable: izvoz
+- service: notify.persistent_notification
+  data:
+    message: "{{ izvoz.rows }} redova -> {{ izvoz.path }}"
+```
+
+A `filename` containing a path separator, a parent reference or a leading dot is
+rejected, so an export can never escape the config directory. The card also has
+an **Export CSV** button that calls the service for the selected vehicle.
+
 ## The card
 
 The integration registers `fuelusagetracker-card` automatically as a frontend
@@ -160,32 +202,41 @@ entity: sensor.fuelusagetracker_passat_total_cost   # optional
 ```
 
 Without configuration the card shows the first tracked vehicle and offers a
-picker for the rest. It shows the current statistics and the current month,
-compares the last months side by side (km, litres, cost, L/100 km and the change
-against the previous month), records fill-ups (date, litres, total price,
-optional odometer, full tank, station), updates the odometer, and lists the
-50 most recent fill-ups with delete (confirmation dialog).
+picker for the rest. It shows the current statistics and the current month, a
+rolling last-12-months summary, monthly **and** yearly comparison tables (km,
+litres, cost, L/100 km and the change against the previous period), records
+fill-ups (date, litres, total price, optional odometer, full tank, station),
+updates the odometer, exports the fill-up log to CSV, and lists the 50 most
+recent fill-ups with delete (confirmation dialog).
 
 ## What it looks like
 
-The card on a dashboard (real data: 24 fill-ups of a diesel Passat over twelve
-months; the monthly comparison table sits below the tiles):
+The card on a dashboard (real data: a diesel Passat over almost three years;
+the rolling summary, the monthly table and the yearly table sit below the tiles):
 
 ![The card, light theme](docs/images/card-light.png)
 
 ![The card, dark theme](docs/images/card-dark.png)
 
+The comparison tables in detail — one renderer, one row per period, deltas
+against the previous period (the yearly table below the monthly one):
+
+![Monthly and yearly comparison tables in the card](docs/images/card-periods-section.png)
+
 Month by month: fuel cost (bars, with the change against the previous month),
-average consumption (line) and kilometres driven — this is the comparison the
-card shows as a table too:
+average consumption (line) and kilometres driven:
 
 ![Monthly comparison](docs/images/monthly-chart.png)
+
+Year by year, the same layout (this is also the "review the year" view):
+
+![Yearly comparison](docs/images/yearly-chart.png)
 
 How the pieces are wired, and where the phase 2 receipt OCR will plug in:
 
 ![Data flow](docs/images/architecture.png)
 
-All five images are reproducible: `docs/preview/card-preview.html` renders the
+All six images are reproducible: `docs/preview/card-preview.html` renders the
 real card file against an exported state file, and
 `docs/preview/make_diagrams.py` draws the charts and the diagram from the same
 export using the integration's own aggregation code. Each file documents the

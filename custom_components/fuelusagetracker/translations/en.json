@@ -114,6 +114,18 @@
       "odometer": {
         "name": "Odometer"
       },
+      "rolling_avg_consumption": {
+        "name": "Average consumption last 12 months"
+      },
+      "rolling_cost": {
+        "name": "Cost last 12 months"
+      },
+      "rolling_distance": {
+        "name": "Distance last 12 months"
+      },
+      "rolling_liters": {
+        "name": "Litres last 12 months"
+      },
       "total_cost": {
         "name": "Total cost"
       },
@@ -122,6 +134,18 @@
       },
       "total_liters": {
         "name": "Total liters"
+      },
+      "year_avg_consumption": {
+        "name": "Average consumption this year"
+      },
+      "year_cost": {
+        "name": "Cost this year"
+      },
+      "year_distance": {
+        "name": "Distance this year"
+      },
+      "year_liters": {
+        "name": "Litres this year"
       }
     }
   }

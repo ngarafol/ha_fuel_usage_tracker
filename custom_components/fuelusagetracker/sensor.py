@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any, Final, Literal
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -39,9 +39,18 @@ from .const import (
     SENSOR_MONTH_FILL_COUNT,
     SENSOR_MONTH_LITERS,
     SENSOR_ODOMETER,
+    SENSOR_ROLLING_AVG_CONSUMPTION,
+    SENSOR_ROLLING_COST,
+    SENSOR_ROLLING_DISTANCE,
+    SENSOR_ROLLING_LITERS,
     SENSOR_TOTAL_COST,
     SENSOR_TOTAL_DISTANCE,
     SENSOR_TOTAL_LITERS,
+    SENSOR_YEAR_AVG_CONSUMPTION,
+    SENSOR_YEAR_COST,
+    SENSOR_YEAR_DISTANCE,
+    SENSOR_YEAR_LITERS,
+    YEAR_HISTORY_YEARS,
 )
 from .data import FuelUsage, FuelUsageCoordinator
 from .entity import FuelUsageEntity
@@ -51,6 +60,9 @@ if TYPE_CHECKING:
 
 #: HA limits attribute size, so the card's fill-up history is capped.
 _MAX_FILLUPS: Final = 50
+
+#: The period a sensor's value belongs to; the card labels it with that period's key.
+PeriodKind = Literal["month", "rolling", "year"]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -65,8 +77,8 @@ class FuelUsageSensorDescription(SensorEntityDescription):
     value_fn: Callable[[FuelUsage], Any]
     #: Unit template with a `{currency}` placeholder, when it embeds the currency.
     unit_template: str | None = None
-    #: Current-month value: carries the `month` attribute so the card can label it.
-    monthly: bool = False
+    #: Carries the period key as an attribute: `month`, `window` or `year`.
+    period_kind: PeriodKind | None = None
 
 
 SENSOR_DESCRIPTIONS: Final[tuple[FuelUsageSensorDescription, ...]] = (
@@ -161,33 +173,88 @@ SENSOR_DESCRIPTIONS: Final[tuple[FuelUsageSensorDescription, ...]] = (
         key=SENSOR_MONTH_DISTANCE,
         device_class=SensorDeviceClass.DISTANCE,
         native_unit_of_measurement="km",
-        monthly=True,
+        period_kind="month",
         value_fn=lambda usage: usage.current_month.distance,
     ),
     FuelUsageSensorDescription(
         key=SENSOR_MONTH_LITERS,
         native_unit_of_measurement="L",
-        monthly=True,
+        period_kind="month",
         value_fn=lambda usage: usage.current_month.liters,
     ),
     FuelUsageSensorDescription(
         key=SENSOR_MONTH_COST,
         device_class=SensorDeviceClass.MONETARY,
         unit_template="{currency}",
-        monthly=True,
+        period_kind="month",
         value_fn=lambda usage: usage.current_month.cost,
     ),
     FuelUsageSensorDescription(
         key=SENSOR_MONTH_AVG_CONSUMPTION,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="L/100km",
-        monthly=True,
+        period_kind="month",
         value_fn=lambda usage: usage.current_month.avg_consumption,
     ),
     FuelUsageSensorDescription(
         key=SENSOR_MONTH_FILL_COUNT,
-        monthly=True,
+        period_kind="month",
         value_fn=lambda usage: usage.current_month.fill_count,
+    ),
+    # Rolling window and year values: no state_class either, they slide or reset.
+    FuelUsageSensorDescription(
+        key=SENSOR_ROLLING_DISTANCE,
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement="km",
+        period_kind="rolling",
+        value_fn=lambda usage: usage.rolling().distance,
+    ),
+    FuelUsageSensorDescription(
+        key=SENSOR_ROLLING_LITERS,
+        native_unit_of_measurement="L",
+        period_kind="rolling",
+        value_fn=lambda usage: usage.rolling().liters,
+    ),
+    FuelUsageSensorDescription(
+        key=SENSOR_ROLLING_COST,
+        device_class=SensorDeviceClass.MONETARY,
+        unit_template="{currency}",
+        period_kind="rolling",
+        value_fn=lambda usage: usage.rolling().cost,
+    ),
+    FuelUsageSensorDescription(
+        key=SENSOR_ROLLING_AVG_CONSUMPTION,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="L/100km",
+        period_kind="rolling",
+        value_fn=lambda usage: usage.rolling().avg_consumption,
+    ),
+    FuelUsageSensorDescription(
+        key=SENSOR_YEAR_DISTANCE,
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement="km",
+        period_kind="year",
+        value_fn=lambda usage: usage.current_year.distance,
+    ),
+    FuelUsageSensorDescription(
+        key=SENSOR_YEAR_LITERS,
+        native_unit_of_measurement="L",
+        period_kind="year",
+        value_fn=lambda usage: usage.current_year.liters,
+    ),
+    FuelUsageSensorDescription(
+        key=SENSOR_YEAR_COST,
+        device_class=SensorDeviceClass.MONETARY,
+        unit_template="{currency}",
+        period_kind="year",
+        value_fn=lambda usage: usage.current_year.cost,
+    ),
+    FuelUsageSensorDescription(
+        key=SENSOR_YEAR_AVG_CONSUMPTION,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="L/100km",
+        period_kind="year",
+        value_fn=lambda usage: usage.current_year.avg_consumption,
     ),
 )
 
@@ -219,15 +286,26 @@ class FuelUsageSensor(FuelUsageEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Identity attributes, plus the history carried by `last_fill`/`month_cost`."""
+        """Identity attributes, plus the period/history some sensors carry."""
         attributes = super().extra_state_attributes
-        key = self.entity_description.key
+        description = self.entity_description
+        key = description.key
         usage: FuelUsage = self.coordinator.data
-        if self.entity_description.monthly:
-            attributes["month"] = usage.current_month.month_key
+        if description.period_kind == "month":
+            attributes["month"] = usage.current_month.key
             if key == SENSOR_MONTH_COST:
                 attributes["months"] = [
-                    month.as_dict() for month in usage.months()[:MONTH_HISTORY_MONTHS]
+                    period.as_dict() for period in usage.months()[:MONTH_HISTORY_MONTHS]
+                ]
+            return attributes
+        if description.period_kind == "rolling":
+            attributes["window"] = usage.rolling().key
+            return attributes
+        if description.period_kind == "year":
+            attributes["year"] = usage.current_year.key
+            if key == SENSOR_YEAR_COST:
+                attributes["years"] = [
+                    period.as_dict() for period in usage.years()[:YEAR_HISTORY_YEARS]
                 ]
             return attributes
         if key != SENSOR_LAST_FILL:

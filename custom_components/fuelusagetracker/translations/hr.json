@@ -114,6 +114,18 @@
       "odometer": {
         "name": "Kilometraža"
       },
+      "rolling_avg_consumption": {
+        "name": "Prosječna potrošnja zadnjih 12 mjeseci"
+      },
+      "rolling_cost": {
+        "name": "Trošak zadnjih 12 mjeseci"
+      },
+      "rolling_distance": {
+        "name": "Kilometraža zadnjih 12 mjeseci"
+      },
+      "rolling_liters": {
+        "name": "Litara zadnjih 12 mjeseci"
+      },
       "total_cost": {
         "name": "Ukupni trošak"
       },
@@ -122,6 +134,18 @@
       },
       "total_liters": {
         "name": "Ukupno litara"
+      },
+      "year_avg_consumption": {
+        "name": "Prosječna potrošnja ove godine"
+      },
+      "year_cost": {
+        "name": "Trošak ove godine"
+      },
+      "year_distance": {
+        "name": "Kilometraža ove godine"
+      },
+      "year_liters": {
+        "name": "Litara ove godine"
       }
     }
   }

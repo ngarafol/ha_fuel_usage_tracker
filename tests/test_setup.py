@@ -1,4 +1,4 @@
-"""Entry setup: one device, all 19 sensors, shared identity attributes."""
+"""Entry setup: one device, all 27 sensors, shared identity attributes."""
 
 from __future__ import annotations
 
@@ -23,13 +23,13 @@ async def test_setup_creates_the_vehicle_device(hass):
     assert device.name == f"{const.ENTITY_PREFIX} {entry.title}"
 
 
-async def test_setup_creates_all_nineteen_sensors(hass):
+async def test_setup_creates_all_twenty_seven_sensors(hass):
     entry = await setup_vehicle(hass)
 
     entities = _registered_entities(hass, entry)
 
-    assert len(SENSOR_KEYS) == 19
-    assert len(entities) == 19
+    assert len(SENSOR_KEYS) == 27
+    assert len(entities) == 27
     for entity in entities:
         assert entity.entity_id.startswith(f"sensor.{const.ENTITY_PREFIX}_")
     assert {

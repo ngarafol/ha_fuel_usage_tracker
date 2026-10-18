@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -17,10 +18,17 @@ from homeassistant.util import dt as dt_util
 from .const import (
     CONF_ODOMETER,
     DOMAIN,
+    ROLLING_MONTHS,
     STORAGE_VERSION,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def month_key(year: int, month: int, delta: int = 0) -> str:
+    """Return the sortable ``YYYY-MM`` key of a month, shifted by ``delta`` months."""
+    index = year * 12 + month - 1 + delta
+    return f"{index // 12:04d}-{index % 12 + 1:02d}"
 
 
 def vehicle_settings(entry: ConfigEntry) -> dict[str, Any]:
@@ -84,34 +92,28 @@ class FillUp:
 
 
 @dataclass(slots=True)
-class MonthlyUsage:
-    """One calendar month of a vehicle's usage, in local time."""
+class PeriodUsage:
+    """Aggregated usage of one period: a calendar month, a year or a rolling window."""
 
-    year: int
-    month: int
+    key: str
     liters: float = 0.0
     cost: float = 0.0
     fill_count: int = 0
-    #: Litres and kilometres of the tank-to-tank legs closed in this month.
+    #: Litres and kilometres of the tank-to-tank legs closed inside this period.
     leg_liters: float = 0.0
     distance: float | None = None
 
     @property
-    def month_key(self) -> str:
-        """Sortable ``YYYY-MM`` key."""
-        return f"{self.year:04d}-{self.month:02d}"
-
-    @property
     def avg_consumption(self) -> float | None:
-        """Litres per 100 km over the legs closed in this month."""
+        """Litres per 100 km over the legs closed in this period."""
         if not self.distance:
             return None
         return round(self.leg_liters / self.distance * 100, 2)
 
     def as_dict(self) -> dict[str, Any]:
-        """Serialise for an entity attribute (the card compares months with this)."""
+        """Serialise for an entity attribute (the card compares periods with this)."""
         return {
-            "month": self.month_key,
+            "period": self.key,
             "distance": round(self.distance, 1) if self.distance is not None else None,
             "liters": round(self.liters, 3),
             "cost": round(self.cost, 2),
@@ -238,41 +240,76 @@ class FuelUsage:
             return None
         return round(self.total_cost / distance, 4)
 
-    def months(self) -> list[MonthlyUsage]:
-        """Monthly aggregation of every month that has at least one fill-up.
+    def _periods(self, key_of: Callable[[datetime], str]) -> dict[str, PeriodUsage]:
+        """Aggregate fill-ups and their closed legs into periods.
 
-        Fill-ups are bucketed by their date in Home Assistant's local time, so a
-        late-evening fill-up belongs to the month the driver experienced. Distance
-        and consumption come from the tank-to-tank legs closed in that month;
-        litres, cost and the fill-up count are what was actually purchased.
-        Returns the newest month first.
+        Bucketing uses the fill-up date in Home Assistant's local time, so a
+        late-evening fill-up belongs to the day and period the driver experienced.
+        Distance and leg litres come from the tank-to-tank legs closed in the
+        period; litres, cost and the fill-up count are what was purchased.
         """
-        buckets: dict[tuple[int, int], MonthlyUsage] = {}
+        periods: dict[str, PeriodUsage] = {}
         legs = {index: (liters, distance) for index, liters, distance in self._leg_rows()}
         for index, fill in enumerate(self.fillups):
-            local = dt_util.as_local(fill.date)
-            key = (local.year, local.month)
-            bucket = buckets.setdefault(key, MonthlyUsage(year=local.year, month=local.month))
-            bucket.liters += fill.liters
-            bucket.cost += fill.price
-            bucket.fill_count += 1
+            key = key_of(dt_util.as_local(fill.date))
+            period = periods.setdefault(key, PeriodUsage(key=key))
+            period.liters += fill.liters
+            period.cost += fill.price
+            period.fill_count += 1
             if (leg := legs.get(index)) is not None:
-                bucket.leg_liters += leg[0]
-                bucket.distance = (bucket.distance or 0.0) + leg[1]
-        return sorted(buckets.values(), key=lambda item: (item.year, item.month), reverse=True)
+                period.leg_liters += leg[0]
+                period.distance = (period.distance or 0.0) + leg[1]
+        return periods
+
+    def months(self) -> list[PeriodUsage]:
+        """Every month that has at least one fill-up, newest first."""
+        periods = self._periods(lambda local: month_key(local.year, local.month))
+        return sorted(periods.values(), key=lambda period: period.key, reverse=True)
+
+    def years(self) -> list[PeriodUsage]:
+        """Every calendar year that has at least one fill-up, newest first."""
+        periods = self._periods(lambda local: f"{local.year:04d}")
+        return sorted(periods.values(), key=lambda period: period.key, reverse=True)
+
+    def rolling(self, count: int = ROLLING_MONTHS) -> PeriodUsage:
+        """Trailing ``count`` calendar months, ending with the current one.
+
+        Includes the current (possibly incomplete) month, so the window always
+        ends today. Empty months inside the window simply contribute nothing.
+        """
+        now = dt_util.now()
+        first, last = month_key(now.year, now.month, 1 - count), month_key(now.year, now.month)
+        window = PeriodUsage(key=f"{first}..{last}")
+        for period in self.months():
+            if not first <= period.key <= last:
+                continue
+            window.liters += period.liters
+            window.cost += period.cost
+            window.fill_count += period.fill_count
+            window.leg_liters += period.leg_liters
+            if period.distance is not None:
+                window.distance = (window.distance or 0.0) + period.distance
+        return window
 
     @property
-    def current_month(self) -> MonthlyUsage:
+    def current_month(self) -> PeriodUsage:
         """This calendar month in local time; zeroed when it has no fill-up yet."""
         now = dt_util.now()
+        key = month_key(now.year, now.month)
         return next(
-            (
-                month
-                for month in self.months()
-                if (month.year, month.month) == (now.year, now.month)
-            ),
-            MonthlyUsage(year=now.year, month=now.month),
+            (period for period in self.months() if period.key == key),
+            PeriodUsage(key=key),
         )
+
+    @property
+    def current_year(self) -> PeriodUsage:
+        """This calendar year in local time; zeroed when it has no fill-up yet."""
+        key = f"{dt_util.now().year:04d}"
+        return next(
+            (period for period in self.years() if period.key == key),
+            PeriodUsage(key=key),
+        )
+
 
 
 class FuelUsageStore:

@@ -5,6 +5,7 @@ Reads the real exported HA sensor states from /tmp/fut_states.json and writes
 two self-contained HTML pages next to this script:
 
     docs/preview/monthly-chart.html   -> docs/images/monthly-chart.png
+    docs/preview/yearly-chart.html    -> docs/images/yearly-chart.png
     docs/preview/architecture.html    -> docs/images/architecture.png
 
 Regenerate the state export first (throwaway pytest run), then:
@@ -27,6 +28,12 @@ Regenerate the state export first (throwaway pytest run), then:
       --window-size=2200,1700 --virtual-time-budget=1500 \
       --screenshot=docs/images/monthly-chart.png \
       "file://$PWD/docs/preview/monthly-chart.html"
+    "$CHROME" --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
+      --disable-crash-reporter --run-all-compositor-stages-before-draw \
+      --user-data-dir="$(mktemp -d)" --force-device-scale-factor=2 \
+      --window-size=2200,1700 --virtual-time-budget=1500 \
+      --screenshot=docs/images/yearly-chart.png \
+      "file://$PWD/docs/preview/yearly-chart.html"
     .venv/bin/python docs/preview/make_diagrams.py --crop     # trims the blank page area
 """
 
@@ -34,12 +41,12 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
 
+from custom_components.fuelusagetracker.const import MONTH_HISTORY_MONTHS  # noqa: E402
 from custom_components.fuelusagetracker.data import FillUp, FuelUsage  # noqa: E402
 
 STATES = Path("/tmp/fut_states.json")
@@ -55,23 +62,30 @@ CHART_W, CHART_H = 960, 780
 
 
 def load() -> dict:
+    """Read the exported states and re-derive the periods with the integration's model.
+
+    Only the fill-up log is taken from the export; the monthly and yearly rows are
+    computed by ``FuelUsage`` itself, so a preview can never disagree with the
+    sensors it documents.
+    """
     data = json.loads(STATES.read_text())
-    sensors = {state["attributes"].get("key"): state for state in data["states"]}
-    raw = list(reversed(sensors["last_fill"]["attributes"]["fillups"]))
-    # Reuse the integration's own model: the previews must show exactly what the
-    # sensors compute, so no second implementation of the maths lives here.
-    usage = FuelUsage(fillups=[FillUp.from_dict(fill) for fill in raw])
-    months = [month.as_dict() for month in usage.months()]
     fillups = [
-        {**fill, "date": datetime.fromisoformat(str(fill["date"]).replace("Z", "+00:00"))}
-        for fill in raw
+        FillUp.from_dict(fill)
+        for fill in reversed(
+            next(
+                state["attributes"]["fillups"]
+                for state in data["states"]
+                if state["attributes"].get("key") == "last_fill"
+            )
+        )
     ]
+    usage = FuelUsage(fillups=fillups)
     return {
         "title": data["title"],
-        "sensors": sensors,
-        "fillups": fillups,
-        "usage": usage,
-        "months": months,
+        "fillup_count": len(fillups),
+        # The chart plots exactly the months the card's payload carries.
+        "months": [period.as_dict() for period in usage.months()[:MONTH_HISTORY_MONTHS]],
+        "years": [period.as_dict() for period in usage.years()],
     }
 
 
@@ -98,10 +112,10 @@ def text(x: float, y: float, content: object, **kw) -> str:
 def architecture_html(title: str) -> str:
     boxes = [
         ("Vozilo (config entry)\nnaziv · gorivo · motor · km", 40, 150, 190, 76, "#eef4ff", "#4f8ef7"),
-        ("Servisi\nadd_fillup · update_fillup\ndelete_fillup · update_vehicle", 280, 150, 230, 76, "#fff7e6", ORANGE),
+        ("Servisi\nadd_fillup · delete_fillup\nupdate_vehicle · export_csv", 280, 150, 230, 76, "#fff7e6", ORANGE),
         ("Store po vozilu\n.storage/fuelusagetracker.<id>\nlitre · cijena · odometar · datum", 560, 150, 250, 76, "#eefaf3", GREEN),
-        ("FuelUsage + koordinator\ntank-to-tank L/100km · mjesečno\n€/km · km · potrošnja", 560, 300, 250, 76, "#eefaf3", GREEN),
-        ("19 senzora po vozilu\nukupno + ovaj mjesec", 280, 300, 230, 76, "#eef4ff", "#4f8ef7"),
+        ("FuelUsage + koordinator\ntank-to-tank L/100km\nPeriodUsage: mjesec/godina/rolling", 560, 300, 250, 76, "#eefaf3", GREEN),
+        ("27 senzora po vozilu\nukupno · mjesec · godina\nzadnjih 12 mjeseci", 280, 300, 230, 76, "#eef4ff", "#4f8ef7"),
         ("fuelusagetracker-card\nstatistika · unos · povijest", 40, 300, 190, 76, "#f7f0ff", "#8b5cf6"),
     ]
     svg = [
@@ -165,13 +179,17 @@ def architecture_html(title: str) -> str:
     )
 
 
-def monthly_chart_html(data: dict, months: list[dict]) -> str:
-    """Month-by-month comparison: cost and consumption, then distance driven.
+def period_chart_html(data: dict, periods: list[dict], kind: str) -> str:
+    """Period-by-period comparison: cost and consumption, then distance driven.
 
-    The month rows come from the integration's own aggregation
-    (``data.FuelUsage.months()``), not from a second implementation.
+    Works for both the monthly and the yearly chart (``kind`` is "month" or
+    "year"); the rows come from the integration's own aggregation
+    (``data.FuelUsage.months()`` / ``.years()``), never from a second
+    implementation of the maths.
     """
-    rows = list(reversed(months))  # chronological
+    title = "mjesečna usporedba" if kind == "month" else "godišnja usporedba"
+    unit = "mjeseci" if kind == "month" else "godine"
+    rows = list(reversed(periods))  # chronological
     width, height = 960, 720
     x0, x1 = 84.0, 900.0
     y0, y1 = 96.0, 440.0  # cost bars + consumption line
@@ -190,7 +208,7 @@ def monthly_chart_html(data: dict, months: list[dict]) -> str:
         f'<svg viewBox="0 0 {width} {height}" width="{width}" height="{height}" '
         'xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, sans-serif">',
         f'<rect width="{width}" height="{height}" rx="14" fill="#fff"/>',
-        text(40, 46, f"{data['title']} — mjesečna usporedba ({len(rows)} mjeseci)",
+        text(40, 46, f"{data['title']} — {title} ({len(rows)} {unit})",
              font_size="20", font_weight="600", fill=INK),
         text(40, 70,
              f"{hr(total_km, 0)} km · {hr(total_liters, 1)} L · {hr(total_cost)} € · "
@@ -258,7 +276,7 @@ def monthly_chart_html(data: dict, months: list[dict]) -> str:
         )
 
     # --- distance bars -------------------------------------------------------
-    svg.append(text(40, y2 - 26, "Prijeđeni kilometri po mjesecu", font_size="14",
+    svg.append(text(40, y2 - 26, "Prijeđeni kilometri" + (" po mjesecu" if kind == "month" else " po godini"), font_size="14",
                     font_weight="600", fill=INK))
     for center, row in zip(centers, rows):
         km = row["distance"] or 0
@@ -269,8 +287,8 @@ def monthly_chart_html(data: dict, months: list[dict]) -> str:
         )
         svg.append(text(center, y3 - bar_h - 6, hr(km, 0), font_size="10.5",
                         fill=GREEN, text_anchor="middle"))
-        svg.append(text(center, y3 + 20, row["month"][2:], font_size="11", fill=MUTED,
-                        text_anchor="middle"))
+        label = row["period"][2:] if kind == "month" else row["period"]
+        svg.append(text(center, y3 + 20, label, font_size="11", fill=MUTED, text_anchor="middle"))
 
     # --- legend --------------------------------------------------------------
     svg.append(f'<rect x="{x0}" y="{y3 + 40}" width="14" height="14" rx="3" fill="{BLUE}"/>')
@@ -285,7 +303,7 @@ def monthly_chart_html(data: dict, months: list[dict]) -> str:
     svg.append("</svg>")
     return (
         "<!doctype html>\n<html lang=\"hr\">\n<head>\n<meta charset=\"utf-8\">\n"
-        "<title>Fuel Usage Tracker — mjesečna usporedba</title>\n"
+        f"<title>Fuel Usage Tracker — {title}</title>\n"
         "<style>html,body{margin:0;padding:0;background:#f4f5f7}</style>\n</head>\n<body>\n"
         + "\n".join(svg) + "\n</body>\n</html>\n"
     )
@@ -313,19 +331,27 @@ def crop_to_content(path: Path) -> tuple[int, int]:
 
 def main() -> None:
     if "--crop" in sys.argv:
-        for name in ("monthly-chart.png", "architecture.png"):
+        for name in ("monthly-chart.png", "yearly-chart.png", "architecture.png"):
             png = HERE.parent / "images" / name
             if png.exists():
                 width, height = crop_to_content(png)
                 print(f"cropped {png.name} -> {width}x{height}")
         return
     data = load()
-    (HERE / "monthly-chart.html").write_text(monthly_chart_html(data, data["months"]))
+    (HERE / "monthly-chart.html").write_text(
+        period_chart_html(data, data["months"], "month")
+    )
+    (HERE / "yearly-chart.html").write_text(
+        period_chart_html(data, data["years"], "year")
+    )
     (HERE / "architecture.html").write_text(architecture_html(data["title"]))
-    print(f"fill-ups: {len(data['fillups'])}, months: {len(data['months'])}")
+    print(
+        f"fill-ups: {data['fillup_count']}, months: {len(data['months'])}, "
+        f"years: {len(data['years'])}"
+    )
     for row in data["months"]:
         print(
-            f"  {row['month']}  {row['distance'] or 0:6.0f} km  {row['liters']:6.1f} L  "
+            f"  {row['period']}  {row['distance'] or 0:6.0f} km  {row['liters']:6.1f} L  "
             f"{row['cost']:7.2f} EUR  {row['avg_consumption'] or float('nan'):5.2f} L/100km  "
             f"{row['fill_count']} fills"
         )

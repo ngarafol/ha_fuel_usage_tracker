@@ -134,3 +134,33 @@ update_vehicle:
           min: 0
           step: any
           unit_of_measurement: km
+
+export_csv:
+  name: Export CSV
+  description: Write a vehicle's data to a CSV file in the Home Assistant config directory.
+  fields:
+    vehicle:
+      name: Vehicle
+      description: Config entry id or vehicle name.
+      required: true
+      example: My car
+      selector:
+        text:
+    scope:
+      name: Scope
+      description: What to export. Fill-ups is the raw log, months and years are the aggregated periods.
+      required: false
+      default: fillups
+      selector:
+        select:
+          options:
+            - fillups
+            - months
+            - years
+    filename:
+      name: File name
+      description: Optional plain .csv file name, without directories. Defaults to fuelusagetracker_<vehicle>_<scope>.csv.
+      required: false
+      example: passat_gorivo.csv
+      selector:
+        text:

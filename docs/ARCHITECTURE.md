@@ -20,6 +20,7 @@ this document. Change it here first, then change code.
 | `custom_components/fuelusagetracker/frontend.py` | card dev | serve + auto-register the card |
 | `custom_components/fuelusagetracker/frontend/fuelusagetracker-card.js` | card dev | the Lovelace card |
 | `custom_components/fuelusagetracker/{strings.json,translations/,services.yaml}` | config flow dev | translations & service UI |
+| `custom_components/fuelusagetracker/csv_export.py` | lead | CSV building + safe export path |
 | `tests/`, `pytest.ini`, `requirements_test.txt` | test dev | automated checks |
 | `docs/preview/card-preview.html`, `docs/images/card-*.png` | preview dev | card harness + light/dark screenshots |
 | `docs/preview/make_diagrams.py`, `docs/images/{monthly-chart,architecture}.png` | lead | chart & data-flow previews |
@@ -63,8 +64,13 @@ version `1`, shape `{"fillups": [<fill-up dict>]}`.
 | `fuelusagetracker.add_fillup` | `vehicle` (required, entry id or title), `liters` (required, > 0), `price` (required, total, >= 0), `odometer` (>= 0), `date` (datetime), `full` (bool, default `true`), `station`, `notes` |
 | `fuelusagetracker.delete_fillup` | `vehicle`, `fillup_id` |
 | `fuelusagetracker.update_vehicle` | `vehicle` + any subset of `name`, `fuel_type`, `engine`, `odometer` |
+| `fuelusagetracker.export_csv` | `vehicle`, `scope` (`fillups` \| `months` \| `years`, default `fillups`), `filename` (plain `.csv` name, optional). Returns `{path, rows}` (`SupportsResponse.OPTIONAL`). |
 
-Unknown vehicle or unknown fill-up id raises `HomeAssistantError`.
+Unknown vehicle or unknown fill-up id raises `HomeAssistantError`. `export_csv`
+writes into the Home Assistant config directory only: a `filename` with a path
+separator, a parent reference or a hidden-file prefix is rejected, and the
+default name is `fuelusagetracker_<vehicle>_<scope>.csv`. The file is UTF-8 with
+a BOM so Excel reads Croatian station names correctly.
 
 ## Entities
 
@@ -99,37 +105,68 @@ Sensor key table (keys are defined in `const.py`, names come from
 | `month_cost` | monetary | – | currency | `usage.current_month.cost` |
 | `month_avg_consumption` | – | measurement | `L/100km` | `usage.current_month.avg_consumption` |
 | `month_fill_count` | – | – | – | `usage.current_month.fill_count` |
+| `rolling_distance` | distance | – | km | `usage.rolling().distance` |
+| `rolling_liters` | – | – | L | `usage.rolling().liters` |
+| `rolling_cost` | monetary | – | currency | `usage.rolling().cost` |
+| `rolling_avg_consumption` | – | measurement | `L/100km` | `usage.rolling().avg_consumption` |
+| `year_distance` | distance | – | km | `usage.current_year.distance` |
+| `year_liters` | – | – | L | `usage.current_year.liters` |
+| `year_cost` | monetary | – | currency | `usage.current_year.cost` |
+| `year_avg_consumption` | – | measurement | `L/100km` | `usage.current_year.avg_consumption` |
 
-(`<currency>` is `hass.config.currency`.) That is 19 sensors per vehicle.
+(`<currency>` is `hass.config.currency`.) That is 27 sensors per vehicle.
 
-## Monthly statistics
+## Period statistics (month, year, rolling window)
 
-`data.FuelUsage.months()` returns a `MonthlyUsage` per month that has at least
-one fill-up, newest first. `FuelUsage.current_month` returns this calendar month
-(zeroed when it has no fill-up yet).
+One aggregation serves all three period kinds. `data.PeriodUsage` carries
+`key`, `liters`, `cost`, `fill_count`, `leg_liters` and `distance`;
+`as_dict()` serialises it as **`period`, `distance`, `liters`, `cost`,
+`avg_consumption`, `fill_count`** (the older `month` field name is gone, and
+payload keys that nothing renders must not come back — see the audit lesson in
+`CHANGELOG.md`).
+
+`FuelUsage` exposes:
+
+* `months()` / `years()` — every month or year with at least one fill-up,
+  newest first, keyed `YYYY-MM` / `YYYY`;
+* `rolling(count=ROLLING_MONTHS)` — one `PeriodUsage` for the trailing
+  `count` calendar months **ending with the current (possibly incomplete)
+  month**, keyed `"YYYY-MM..YYYY-MM"`. Empty months inside the window
+  contribute nothing;
+* `current_month` / `current_year` — this calendar month/year, zeroed when it
+  has no fill-up yet.
+
+Rules that apply to every period kind:
 
 * Bucketing is by the fill-up date converted with `dt_util.as_local()`, i.e. in
   `hass.config.time_zone`. A fill-up at 23:30 UTC on 31 January belongs to
   February in `Europe/Zagreb`. Tests must set the default time zone explicitly.
-* `liters`, `cost` and `fill_count` are what was **purchased** that month.
+* `liters`, `cost` and `fill_count` are what was **purchased** in the period.
 * `distance`, `leg_liters` and therefore `avg_consumption` come from the
-  tank-to-tank legs **closed** in that month (the leg's total litres over the
-  leg's kilometres), plus `avg_price_per_liter` and `cost_per_km` on that basis.
-  A month that closes no leg has `distance = None` and `avg_consumption = None`.
-* Months without any fill-up are omitted rather than reported as zero.
+  tank-to-tank legs **closed** in the period (the leg's total litres over the
+  leg's kilometres). A period that closes no leg has `distance = None` and
+  `avg_consumption = None`.
+* Periods without any fill-up are omitted from `months()`/`years()` rather than
+  reported as zero (the rolling window is the exception: it is a fixed window,
+  so an empty month inside it is simply absent, and an empty window reports
+  zeros with `distance = None`).
 
-The `month_*` sensors deliberately carry **no state class**: their value resets
-every month, so feeding them into long-term statistics would corrupt the sum.
-The `total_*` sensors own the statistics. A README recipe shows the native
-`utility_meter` alternative (`cycle: monthly`) for users who want HA-native
-monthly statistics entities.
+The `month_*`, `year_*` and `rolling_*` sensors deliberately carry **no state
+class** for their totals: those values reset (month/year) or slide (rolling), so
+feeding them into long-term statistics would corrupt the sum. Only
+`month_avg_consumption`, `year_avg_consumption` and `rolling_avg_consumption`
+are `measurement`. The `total_*` sensors own the statistics. A README recipe
+shows the native `utility_meter` alternative (`cycle: monthly`) for users who
+want HA-native period statistics entities.
 
-The `month_cost` sensor additionally exposes, for the card:
+Attributes for the card (each `as_dict()` row is the 6-key period payload above):
 
-* `month`: the `YYYY-MM` key the values refer to (also on the other `month_*`
-  sensors), so the card can label "this month" without guessing;
-* `months`: the newest-first list of `MonthlyUsage.as_dict()` dicts, **capped at
-  `MONTH_HISTORY_MONTHS` (24)** because HA limits attribute size.
+* every `month_*` sensor: `month` = `YYYY-MM`; every `year_*`: `year` = `YYYY`;
+  every `rolling_*`: `window` = `YYYY-MM..YYYY-MM`;
+* `month_cost`: `months`, newest first, **capped at `MONTH_HISTORY_MONTHS` (24)**;
+* `year_cost`: `years`, newest first, **capped at `YEAR_HISTORY_YEARS` (10)**.
+
+Caps exist because Home Assistant limits attribute size.
 
 `<currency>` is `hass.config.currency`.
 
@@ -162,16 +199,26 @@ vehicle name); with no config it shows the first tracked vehicle and offers a
 picker. It must:
 
 * read stats from entities via the `key` attribute (never from guessed entity ids),
-* surface **every** sensor key somewhere (a tile, a last-fill row or the fill-up
-  list); a key the card never renders is a bug — `avg_price_per_liter` was exactly
-  that until 0.1.1,
+* surface **every** sensor key somewhere (a tile, the rolling strip, a period
+  table row, a last-fill row or the fill-up list); a key the card never renders
+  is a bug — `avg_price_per_liter` was exactly that until 0.1.1. The period
+  totals are shown through their period: `month_distance`/`month_liters`/
+  `month_fill_count` and the `year_*` totals appear as the km/L/fills columns of
+  the monthly and yearly tables, and the `rolling_*` values in the summary
+  strip. Because a sensor key is not always a literal in the card source, this
+  rule stays a review rule; the machine-checked guard covers the period payload
+  (`PeriodUsage.as_dict()` keys must all be read by the card),
 * list recent fill-ups from the `fillups` attribute of the `last_fill` entity,
-* show the current month (`month_cost`, `month_avg_consumption` tiles) and a
-  monthly comparison table read from the `months` attribute of the `month_cost`
-  entity: month, km, litres, cost, L/100km and fill-up count, plus the change
-  against the previous month (consumption, cost and km). The current month is
-  marked, and a month whose `avg_consumption` is `null` shows `-` instead of a
-  fabricated number,
+* show the current month (`month_cost`, `month_avg_consumption` tiles), a
+  compact **last 12 months** summary line (the four `rolling_*` values, labelled
+  with their `window` attribute) and **two** comparison tables read from the
+  `months` attribute of `month_cost` and the `years` attribute of `year_cost`:
+  period, km, litres, cost, L/100km and fill-up count, plus the change against
+  the previous period (consumption, cost and km). Both tables share one renderer.
+  The current period is marked, and a period whose `avg_consumption` is `null`
+  shows `-` instead of a fabricated number,
+* offer a CSV export action that calls `fuelusagetracker.export_csv` for the
+  selected vehicle (scope `fillups`) and reports the written path or the error,
 * add a fill-up through `fuelusagetracker.add_fillup`,
 * update the odometer through `fuelusagetracker.update_vehicle`,
 * delete a fill-up through `fuelusagetracker.delete_fillup`, with a confirmation

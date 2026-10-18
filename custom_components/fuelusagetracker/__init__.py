@@ -14,7 +14,13 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+    callback,
+)
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
@@ -22,6 +28,7 @@ from homeassistant.util import dt as dt_util
 from .const import (
     CONF_DATE,
     CONF_ENGINE,
+    CONF_FILENAME,
     CONF_FILLUP_ID,
     CONF_FUEL_TYPE,
     CONF_FULL,
@@ -30,14 +37,18 @@ from .const import (
     CONF_NOTES,
     CONF_ODOMETER,
     CONF_PRICE,
+    CONF_SCOPE,
     CONF_STATION,
     CONF_VEHICLE,
     DOMAIN,
+    EXPORT_SCOPES,
     FUEL_TYPES,
     SERVICE_ADD_FILLUP,
     SERVICE_DELETE_FILLUP,
+    SERVICE_EXPORT_CSV,
     SERVICE_UPDATE_VEHICLE,
 )
+from .csv_export import ENCODING, build_csv, csv_path
 from .data import FillUp, FuelUsageCoordinator
 from .frontend import async_setup_frontend
 
@@ -74,6 +85,14 @@ UPDATE_VEHICLE_SCHEMA = vol.Schema(
         vol.Optional(CONF_FUEL_TYPE): vol.In(FUEL_TYPES),
         vol.Optional(CONF_ENGINE): cv.string,
         vol.Optional(CONF_ODOMETER): vol.All(vol.Coerce(float), vol.Range(min=0)),
+    }
+)
+
+EXPORT_CSV_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_VEHICLE): cv.string,
+        vol.Optional(CONF_SCOPE, default="fillups"): vol.In(EXPORT_SCOPES),
+        vol.Optional(CONF_FILENAME): cv.string,
     }
 )
 
@@ -165,6 +184,16 @@ def _async_register_services(hass: HomeAssistant) -> None:
                 entry, title=title, options=options
             )
 
+    async def async_export_csv(call: ServiceCall) -> ServiceResponse:
+        entry = _async_get_entry(call.hass, call.data[CONF_VEHICLE])
+        scope = call.data[CONF_SCOPE]
+        coordinator = _async_get_coordinator(call.hass, call.data[CONF_VEHICLE])
+        text, rows = build_csv(coordinator.data, scope)
+        path = csv_path(call.hass, entry.title, scope, call.data.get(CONF_FILENAME))
+        await call.hass.async_add_executor_job(path.write_text, text, ENCODING)
+        _LOGGER.info("Exported %s %s rows to %s", rows, scope, path)
+        return {"path": str(path), "rows": rows}
+
     hass.services.async_register(
         DOMAIN, SERVICE_ADD_FILLUP, async_add_fillup, schema=ADD_FILLUP_SCHEMA
     )
@@ -173,4 +202,11 @@ def _async_register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, SERVICE_UPDATE_VEHICLE, async_update_vehicle, schema=UPDATE_VEHICLE_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_EXPORT_CSV,
+        async_export_csv,
+        schema=EXPORT_CSV_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
     )

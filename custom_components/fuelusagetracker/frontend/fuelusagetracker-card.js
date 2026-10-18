@@ -27,6 +27,42 @@ const STATS = [
   { key: "month_avg_consumption", label: "This month consumption", digits: 2, month: true },
 ];
 
+/** Trailing-window strip: sensor key, field label, fraction digits, money flag. */
+const ROLLING = [
+  { key: "rolling_distance", label: "Distance", digits: 0 },
+  { key: "rolling_liters", label: "Litres", digits: 2 },
+  { key: "rolling_cost", label: "Cost", digits: 2, money: true },
+  { key: "rolling_avg_consumption", label: "Consumption", digits: 2 },
+];
+
+/**
+ * Comparison tables, both drawn by `_renderPeriodTable`: `rows` and `current`
+ * name the attributes of `entity` carrying the period payloads and the period
+ * the entity states refer to; `limit` is the collapsed row count.
+ */
+const PERIOD_TABLES = [
+  {
+    toggle: "months",
+    entity: "month_cost",
+    rows: "months",
+    current: "month",
+    header: "Month",
+    title: "Monthly comparison",
+    empty: "No monthly data yet.",
+    limit: 12,
+  },
+  {
+    toggle: "years",
+    entity: "year_cost",
+    rows: "years",
+    current: "year",
+    header: "Year",
+    title: "Yearly comparison",
+    empty: "No yearly data yet.",
+    limit: 12,
+  },
+];
+
 const STYLES = `
   :host { display: block; }
   ha-card { overflow: hidden; }
@@ -63,21 +99,24 @@ const STYLES = `
   .fill .main { grid-column: 1; font-size: .95rem; color: var(--primary-text-color); }
   .fill .meta { grid-column: 1; font-size: .78rem; color: var(--secondary-text-color); }
   .fill button { grid-area: 1 / 2 / span 2 / 3; align-self: center; }
-  .empty, .error { padding: 0 16px 12px; font-size: .85rem; }
-  .empty { color: var(--secondary-text-color); }
+  .empty, .error, .notice { padding: 0 16px 12px; font-size: .85rem; }
+  .empty, .notice { color: var(--secondary-text-color); }
   .error { color: var(--error-color, #db4437); }
-  .error[hidden] { display: none; }
-  .months { padding: 0 16px 12px; }
-  .months-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .8rem; }
-  .months-table th, .months-table td { padding: 3px 4px; text-align: right; vertical-align: top; overflow-wrap: anywhere; }
-  .months-table th:first-child, .months-table td:first-child { width: 26%; text-align: left; }
-  .months-table thead th { font-size: .66rem; font-weight: 500; letter-spacing: .03em; text-transform: uppercase; color: var(--secondary-text-color); }
-  .months-table tbody tr { border-top: 1px solid var(--divider-color); }
-  .months-table tbody tr:first-child { border-top: none; }
-  .months-table .delta { font-size: .72rem; color: var(--secondary-text-color); }
-  .months-table tr.current td { color: var(--primary-text-color); }
-  .months-table tr.current td:first-child { font-weight: 600; }
-  .months-table .now { margin-left: 4px; padding: 0 4px; font-size: .64rem; font-weight: 400; letter-spacing: .03em; text-transform: uppercase; border-radius: 6px; background: var(--secondary-background-color); color: var(--secondary-text-color); }
+  [hidden] { display: none; }
+  .rolling { display: flex; flex-wrap: wrap; gap: 2px 14px; padding: 0 16px 12px; font-size: .85rem; color: var(--primary-text-color); }
+  .rolling .window, .rolling .k { color: var(--secondary-text-color); }
+  .rolling .k { margin-right: 4px; }
+  .periods { padding: 0 16px 12px; }
+  .periods-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .8rem; }
+  .periods-table th, .periods-table td { padding: 3px 4px; text-align: right; vertical-align: top; overflow-wrap: anywhere; }
+  .periods-table th:first-child, .periods-table td:first-child { width: 26%; text-align: left; }
+  .periods-table thead th { font-size: .66rem; font-weight: 500; letter-spacing: .03em; text-transform: uppercase; color: var(--secondary-text-color); }
+  .periods-table tbody tr { border-top: 1px solid var(--divider-color); }
+  .periods-table tbody tr:first-child { border-top: none; }
+  .periods-table .delta { font-size: .72rem; color: var(--secondary-text-color); }
+  .periods-table tr.current td { color: var(--primary-text-color); }
+  .periods-table tr.current td:first-child { font-weight: 600; }
+  .periods-table .now { margin-left: 4px; padding: 0 4px; font-size: .64rem; font-weight: 400; letter-spacing: .03em; text-transform: uppercase; border-radius: 6px; background: var(--secondary-background-color); color: var(--secondary-text-color); }
 `;
 
 /** Create an element; `text`, `class` and `on*` keys get special treatment. */
@@ -111,6 +150,7 @@ class FuelUsageTrackerCard extends HTMLElement {
     this._showAll = {};
     this._busy = false;
     this._error = null;
+    this._errorIsNotice = false;
   }
 
   static getStubConfig(hass) {
@@ -334,6 +374,23 @@ class FuelUsageTrackerCard extends HTMLElement {
     }
     card.append(stats);
 
+    // Trailing-window strip; hidden entirely when the rolling_* sensors are absent.
+    const rollingWindow = el("span", { class: "window" });
+    const rollingFields = {};
+    const rollingStrip = el("div", { class: "rolling" }, [rollingWindow]);
+    for (const item of ROLLING) {
+      const value = el("span", { class: "v" });
+      rollingFields[item.key] = value;
+      rollingStrip.append(
+        el("span", { class: "rfield" }, [el("span", { class: "k", text: item.label }), value])
+      );
+    }
+    const rollingSection = el("div", { class: "section" }, [
+      el("div", { class: "section-head" }, [el("span", { text: "Last 12 months" })]),
+      rollingStrip,
+    ]);
+    card.append(rollingSection);
+
     // Last fill details.
     const lastRows = el("div", { class: "rows" });
     const lastRefs = {};
@@ -400,6 +457,7 @@ class FuelUsageTrackerCard extends HTMLElement {
 
     // Collapsible lists; each section head carries the shared Show all toggle.
     const toggles = {};
+    const tables = {};
     const fillNodes = el("div", { class: "fills" });
     card.append(
       el("div", { class: "section" }, [
@@ -407,13 +465,27 @@ class FuelUsageTrackerCard extends HTMLElement {
         fillNodes,
       ])
     );
+    for (const table of PERIOD_TABLES) {
+      const nodes = el("div", { class: "periods" });
+      tables[table.toggle] = nodes;
+      card.append(
+        el("div", { class: "section" }, [
+          this._showAllHead(table.toggle, table.title, toggles),
+          nodes,
+        ])
+      );
+    }
 
-    // Monthly comparison (from the `months` attribute of the month_cost entity).
-    const monthNodes = el("div", { class: "months" });
+    // CSV export of the fill-up log.
+    const exportButton = el("button", {
+      type: "button",
+      text: "Export fill-ups (CSV)",
+      onclick: () => this._exportCsv(),
+    });
     card.append(
       el("div", { class: "section" }, [
-        this._showAllHead("months", "Monthly comparison", toggles),
-        monthNodes,
+        el("div", { class: "section-head" }, [el("span", { text: "CSV export" })]),
+        el("div", { class: "actions" }, [exportButton]),
       ])
     );
 
@@ -427,8 +499,10 @@ class FuelUsageTrackerCard extends HTMLElement {
       odoInput,
       odoButton,
       fillNodes,
-      monthNodes,
+      tables,
       toggles,
+      rolling: { section: rollingSection, window: rollingWindow, fields: rollingFields },
+      exportButton,
     };
     this._update(vehicle);
   }
@@ -446,7 +520,7 @@ class FuelUsageTrackerCard extends HTMLElement {
       ref.amount.textContent = this._value(state, ref.stat.digits, ref.stat.money ? currency : null);
       ref.unit.textContent = ref.stat.money ? "" : this._unit(state);
       const month = (state && state.attributes && state.attributes.month) || "";
-      ref.month.textContent = ref.stat.month && month ? this._monthLabel(month) : "";
+      ref.month.textContent = ref.stat.month && month ? this._periodLabel(month) : "";
     }
 
     const last = this._entity(vehicle, "last_fill");
@@ -467,7 +541,34 @@ class FuelUsageTrackerCard extends HTMLElement {
     setLast("notes", attrs.notes);
 
     this._renderFills(vehicle, currency);
-    this._renderMonths(vehicle, currency);
+    this._renderRolling(vehicle, currency);
+    for (const table of PERIOD_TABLES) this._renderPeriodTable(vehicle, currency, table);
+  }
+
+  /**
+   * Trailing-window strip: the four rolling_* values plus the window label taken
+   * from their `window` attribute. Hidden when no rolling sensor exists.
+   */
+  _renderRolling(vehicle, currency) {
+    const refs = this._refs.rolling;
+    let window = "";
+    let present = false;
+    for (const item of ROLLING) {
+      const state = this._entity(vehicle, item.key);
+      if (state) present = true;
+      const attrs = (state && state.attributes) || {};
+      if (!window && attrs.window) window = String(attrs.window);
+      const text = [
+        this._value(state, item.digits, item.money ? currency : null),
+        item.money ? "" : this._unit(state),
+      ]
+        .filter(Boolean)
+        .join(" ");
+      refs.fields[item.key].textContent = text;
+    }
+    refs.window.textContent = window;
+    refs.window.hidden = !window;
+    refs.section.hidden = !present;
   }
 
   /**
@@ -553,10 +654,11 @@ class FuelUsageTrackerCard extends HTMLElement {
     return `${sign}${this._number(Math.abs(pct), 1)}%`;
   }
 
-  /** `2026-03` -> localized short month + year, e.g. "Mär 2026". */
-  _monthLabel(key) {
-    const match = /^(\d{4})-(\d{2})$/.exec(String(key || ""));
-    if (!match) return key ? String(key) : "-";
+  /** `2026-03` -> localized short month + year ("Mär 2026"); `2026` stays as is. */
+  _periodLabel(period) {
+    const text = String(period || "");
+    const match = /^(\d{4})-(\d{2})$/.exec(text);
+    if (!match) return text || "-";
     const date = new Date(Number(match[1]), Number(match[2]) - 1, 1);
     try {
       return new Intl.DateTimeFormat(this._locale(), {
@@ -564,21 +666,22 @@ class FuelUsageTrackerCard extends HTMLElement {
         year: "numeric",
       }).format(date);
     } catch (err) {
-      return String(key);
+      return text;
     }
   }
 
-  _renderMonths(vehicle, currency) {
-    const container = this._refs.monthNodes;
+  /** One comparison table; `table` is an entry of PERIOD_TABLES. */
+  _renderPeriodTable(vehicle, currency, table) {
+    const container = this._refs.tables[table.toggle];
     container.innerHTML = "";
-    const state = this._entity(vehicle, "month_cost");
+    const state = this._entity(vehicle, table.entity);
     const attrs = (state && state.attributes) || {};
-    const months = Array.isArray(attrs.months) ? attrs.months : [];
-    const currentKey = attrs.month || null;
-    const limit = this._showAllRows("months", months.length, 12);
+    const rows = Array.isArray(attrs[table.rows]) ? attrs[table.rows] : [];
+    const current = attrs[table.current] || null;
+    const limit = this._showAllRows(table.toggle, rows.length, table.limit);
 
-    if (!months.length) {
-      container.append(el("div", { class: "empty", text: "No monthly data yet." }));
+    if (!rows.length) {
+      container.append(el("div", { class: "empty", text: table.empty }));
       return;
     }
 
@@ -597,7 +700,7 @@ class FuelUsageTrackerCard extends HTMLElement {
       ]);
 
     const head = el("tr", {}, [
-      el("th", { scope: "col", text: "Month" }),
+      el("th", { scope: "col", text: table.header }),
       el("th", { scope: "col", text: "km" }),
       el("th", { scope: "col", text: "L" }),
       el("th", { scope: "col", text: "Cost" }),
@@ -605,25 +708,25 @@ class FuelUsageTrackerCard extends HTMLElement {
       el("th", { scope: "col", text: "Fills" }),
     ]);
     const body = el("tbody");
-    for (const [index, month] of months.slice(0, limit).entries()) {
-      const older = months[index + 1];
-      const isCurrent = currentKey !== null && month.month === currentKey;
+    for (const [index, row] of rows.slice(0, limit).entries()) {
+      const older = rows[index + 1];
+      const isCurrent = current !== null && row.period === current;
       body.append(
         el("tr", { class: isCurrent ? "current" : null }, [
-          el("td", { class: "month" }, [
-            el("span", { class: "month-label", text: this._monthLabel(month.month) }),
+          el("td", { class: "period" }, [
+            el("span", { class: "period-label", text: this._periodLabel(row.period) }),
             isCurrent ? el("span", { class: "now", text: "current" }) : null,
           ]),
-          cell(num(month.distance, 0, " km"), this._delta(month.distance, older && older.distance)),
-          cell(num(month.liters, 1), null),
-          cell(money(month.cost), this._delta(month.cost, older && older.cost)),
-          cell(num(month.avg_consumption, 2), this._delta(month.avg_consumption, older && older.avg_consumption)),
-          cell(num(month.fill_count, 0), null),
+          cell(num(row.distance, 0, " km"), this._delta(row.distance, older && older.distance)),
+          cell(num(row.liters, 1), null),
+          cell(money(row.cost), this._delta(row.cost, older && older.cost)),
+          cell(num(row.avg_consumption, 2), this._delta(row.avg_consumption, older && older.avg_consumption)),
+          cell(num(row.fill_count, 0), null),
         ])
       );
     }
     container.append(
-      el("table", { class: "months-table" }, [el("thead", {}, [head]), body])
+      el("table", { class: "periods-table" }, [el("thead", {}, [head]), body])
     );
   }
 
@@ -631,11 +734,20 @@ class FuelUsageTrackerCard extends HTMLElement {
     const error = this._refs && this._refs.error;
     if (!error) return;
     error.textContent = this._error || "";
+    error.className = this._errorIsNotice ? "notice" : "error";
     if (this._error) error.removeAttribute("hidden");
     else error.setAttribute("hidden", "");
   }
 
   _setError(message) {
+    this._errorIsNotice = false;
+    this._error = message || null;
+    this._renderError();
+  }
+
+  /** Success text shares the card's single message line with errors. */
+  _setNotice(message) {
+    this._errorIsNotice = true;
     this._error = message || null;
     this._renderError();
   }
@@ -651,7 +763,7 @@ class FuelUsageTrackerCard extends HTMLElement {
     if (!vehicle) return;
     const currency = this._currency(vehicle);
     if (key === "fills") this._renderFills(vehicle, currency);
-    else this._renderMonths(vehicle, currency);
+    else this._renderPeriodTable(vehicle, currency, PERIOD_TABLES.find((table) => table.toggle === key));
   }
 
   // --- actions ------------------------------------------------------------
@@ -665,6 +777,34 @@ class FuelUsageTrackerCard extends HTMLElement {
     } catch (err) {
       this._setError((err && err.message) || `${service} failed`);
       return false;
+    } finally {
+      this._busy = false;
+    }
+  }
+
+  /**
+   * `export_csv` with `returnResponse` (a positional flag on `hass.callService`)
+   * so the card can report the written path; the notice area shows one line.
+   */
+  async _exportCsv() {
+    const vehicle = this._vehicle();
+    if (!vehicle || this._busy) return;
+    this._busy = true;
+    this._setError(null);
+    try {
+      const response = await this._hass.callService(
+        DOMAIN,
+        "export_csv",
+        { vehicle: vehicle.id, scope: "fillups" },
+        undefined,
+        false,
+        true
+      );
+      const result = (response && response.response) || response || {};
+      if (result.path) this._setNotice(`Exported ${result.rows} rows to ${result.path}`);
+      else this._setError("CSV export returned no path.");
+    } catch (err) {
+      this._setError((err && err.message) || "export_csv failed");
     } finally {
       this._busy = false;
     }

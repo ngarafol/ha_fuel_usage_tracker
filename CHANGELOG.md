@@ -4,6 +4,31 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.4.0] - 2026-10-18
+
+### Added
+
+* **Rolling 12-month overview:** `rolling_distance`, `rolling_liters`,
+  `rolling_cost` and `rolling_avg_consumption` cover the trailing 12 calendar
+  months ending today (never resets on 1 January); the `window` attribute carries
+  the exact range.
+* **Yearly statistics:** `year_distance`, `year_liters`, `year_cost` and
+  `year_avg_consumption` for the current calendar year, plus a year-on-year
+  history (`years` attribute on `year_cost`, 10 years).
+* **CSV export:** the `export_csv` service writes the fill-up log or the monthly
+  or yearly aggregation into the Home Assistant config directory (UTF-8 with BOM)
+  and returns `{path, rows}`; the card has an Export CSV button.
+* Yearly comparison chart in the previews and a yearly comparison table in the
+  card (monthly and yearly tables share one renderer).
+
+### Changed
+
+* `MonthlyUsage` was generalized to `PeriodUsage` with one aggregation for
+  months, years and rolling windows; the period payload rows use `period`
+  (previously `month`) with the keys `period`, `distance`, `liters`, `cost`,
+  `avg_consumption`, `fill_count`.
+* Sensors per vehicle: 19 → 27.
+
 ## [0.3.0] - 2026-10-18
 
 Complexity audit (ponytail-audit) applied — nothing was removed that had a
@@ -98,6 +123,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.4.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.4.0
 [0.3.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.3.0
 [0.2.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.2.0
 [0.1.1]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.1.1

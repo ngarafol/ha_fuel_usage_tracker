@@ -1,23 +1,21 @@
 """Monthly statistics: purchased litres vs. closed legs, local-time bucketing,
 ordering, the history cap and the five ``month_*`` sensors.
 
-Contract: ``docs/ARCHITECTURE.md`` "Monthly statistics" plus the 19-row sensor
+Contract: ``docs/ARCHITECTURE.md`` "Period statistics" plus the 27-row sensor
 key table.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from zoneinfo import ZoneInfo
 
-import pytest
 from homeassistant.helpers import entity_registry as er
-from homeassistant.util import dt as dt_util
 
 from custom_components.fuelusagetracker import const
-from custom_components.fuelusagetracker.data import FuelUsage, MonthlyUsage
+from custom_components.fuelusagetracker.data import FuelUsage, PeriodUsage
 from tests.helpers import (
     BASE_ODOMETER,
+    PERIOD_KEYS,
     SENSOR_KEYS,
     add_fillup,
     fill,
@@ -38,27 +36,9 @@ MONTH_KEYS = (
 )
 
 
-@pytest.fixture
-def utc_timezone():
-    """Pin the default time zone: `data.py` buckets months through `dt_util`."""
-    previous = dt_util.get_default_time_zone()
-    dt_util.set_default_time_zone(UTC)
-    yield UTC
-    dt_util.set_default_time_zone(previous)
-
-
-@pytest.fixture
-def zagreb_timezone():
-    """A one-hour-ahead zone, so a late-evening fill-up crosses the month."""
-    previous = dt_util.get_default_time_zone()
-    dt_util.set_default_time_zone(ZoneInfo("Europe/Zagreb"))
-    yield ZoneInfo("Europe/Zagreb")
-    dt_util.set_default_time_zone(previous)
-
-
-def month(usage: FuelUsage, key: str) -> MonthlyUsage:
+def month(usage: FuelUsage, key: str) -> PeriodUsage:
     """The one month bucket with the given ``YYYY-MM`` key."""
-    months = {item.month_key: item for item in usage.months()}
+    months = {item.key: item for item in usage.months()}
     assert key in months, f"no bucket for {key}, got {sorted(months)}"
     return months[key]
 
@@ -128,7 +108,7 @@ def test_month_bucketing_uses_local_time(zagreb_timezone):
         ]
     )
 
-    assert [item.month_key for item in usage.months()] == ["2026-02"]
+    assert [item.key for item in usage.months()] == ["2026-02"]
 
 
 def test_month_bucketing_stays_in_january_under_utc(utc_timezone):
@@ -143,7 +123,7 @@ def test_month_bucketing_stays_in_january_under_utc(utc_timezone):
         ]
     )
 
-    assert [item.month_key for item in usage.months()] == ["2026-01"]
+    assert [item.key for item in usage.months()] == ["2026-01"]
 
 
 def test_months_without_fillups_are_omitted_not_zeroed(utc_timezone):
@@ -160,7 +140,7 @@ def test_months_without_fillups_are_omitted_not_zeroed(utc_timezone):
     )
 
     # February has no fill-up at all: omitted, never a zero row.
-    assert [item.month_key for item in usage.months()] == ["2026-03", "2026-01"]
+    assert [item.key for item in usage.months()] == ["2026-03", "2026-01"]
 
 
 def test_months_are_newest_first(utc_timezone):
@@ -177,7 +157,7 @@ def test_months_are_newest_first(utc_timezone):
         ]
     )
 
-    assert [item.month_key for item in usage.months()] == [
+    assert [item.key for item in usage.months()] == [
         "2026-03",
         "2026-02",
         "2026-01",
@@ -208,17 +188,17 @@ async def test_month_cost_history_shape_order_and_cap(hass, utc_timezone):
 
     expected = [f"{when.year:04d}-{when.month:02d}" for when in reversed(dates)]
     assert len(history) == const.MONTH_HISTORY_MONTHS == 24
-    assert [item["month"] for item in history] == expected[: const.MONTH_HISTORY_MONTHS]
-    assert set(history[0]) == set(MonthlyUsage(year=2024, month=1).as_dict())
+    assert [item["period"] for item in history] == expected[: const.MONTH_HISTORY_MONTHS]
+    assert set(history[0]) == PERIOD_KEYS
 
 
-async def test_all_nineteen_sensors_are_registered_with_the_prefix(hass):
+async def test_all_twenty_seven_sensors_are_registered_with_the_prefix(hass):
     entry = await setup_vehicle(hass)
 
     entities = er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)
 
-    assert len(SENSOR_KEYS) == 19
-    assert len(entities) == 19
+    assert len(SENSOR_KEYS) == 27
+    assert len(entities) == 27
     for entity in entities:
         assert entity.entity_id.startswith(f"sensor.{const.ENTITY_PREFIX}_")
     assert {hass.states.get(entity.entity_id).attributes["key"] for entity in entities} == set(

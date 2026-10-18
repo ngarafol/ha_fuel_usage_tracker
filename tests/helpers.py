@@ -21,9 +21,16 @@ DEFAULT_VEHICLE: dict[str, Any] = {
     const.CONF_ODOMETER: BASE_ODOMETER,
 }
 
-#: The 19 sensor keys of the frozen key table, taken from const.py itself.
+#: The 27 sensor keys of the frozen key table, taken from const.py itself.
 SENSOR_KEYS: frozenset[str] = frozenset(
     value for name, value in vars(const).items() if name.startswith("SENSOR_")
+)
+
+#: The exact payload of one period row (docs/ARCHITECTURE.md "Period statistics").
+#: Written out rather than derived from ``as_dict()`` so that a key nothing renders
+#: cannot silently creep back into the payload.
+PERIOD_KEYS: frozenset[str] = frozenset(
+    {"period", "distance", "liters", "cost", "avg_consumption", "fill_count"}
 )
 
 FILLUP_DATE_1 = "2026-01-10T09:00:00+00:00"
@@ -39,21 +46,26 @@ def fill(
     odometer: float | None = None,
     full: bool = True,
     *,
+    price: float | None = None,
     date: datetime = FILLUP_BASE_DATE,
     fillup_id: str = "fill",
+    station: str | None = None,
+    notes: str | None = None,
 ) -> FillUp:
-    """Build a fill-up priced at 1.50 per litre, the shared fixture convention.
+    """Build a fill-up for a fixture, priced at 1.50 per litre unless told otherwise.
 
     ``date`` and ``fillup_id`` default to a fixed anchor, so a maths-only test
-    can stay terse; any test that buckets by month passes its own ``date``.
+    can stay terse; any test that buckets by period passes its own ``date``.
     """
     return FillUp(
         id=fillup_id,
         date=date,
         liters=liters,
-        price=liters * 1.5,
+        price=liters * 1.5 if price is None else price,
         odometer=odometer,
         full=full,
+        station=station,
+        notes=notes,
     )
 
 

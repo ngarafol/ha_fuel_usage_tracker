@@ -43,6 +43,7 @@ FUEL_TYPES: Final[tuple[str, ...]] = (
 SERVICE_ADD_FILLUP: Final = "add_fillup"
 SERVICE_DELETE_FILLUP: Final = "delete_fillup"
 SERVICE_UPDATE_VEHICLE: Final = "update_vehicle"
+SERVICE_EXPORT_CSV: Final = "export_csv"
 
 # Sensor keys. These are stable identifiers: they are exposed as the ``key`` state
 # attribute so the bundled Lovelace card never has to guess entity_ids.
@@ -71,3 +72,27 @@ SENSOR_MONTH_FILL_COUNT: Final = "month_fill_count"
 
 #: How many months of history the ``months`` attribute keeps (HA limits attribute size).
 MONTH_HISTORY_MONTHS: Final = 24
+
+#: Trailing window of the rolling overview, in calendar months.
+ROLLING_MONTHS: Final = 12
+
+# Rolling-window sensors: the trailing ROLLING_MONTHS months ending today.
+SENSOR_ROLLING_DISTANCE: Final = "rolling_distance"
+SENSOR_ROLLING_LITERS: Final = "rolling_liters"
+SENSOR_ROLLING_COST: Final = "rolling_cost"
+SENSOR_ROLLING_AVG_CONSUMPTION: Final = "rolling_avg_consumption"
+
+# Current-year sensors. Together with the ``years`` history attribute on
+# SENSOR_YEAR_COST they give the owner year-on-year comparability.
+SENSOR_YEAR_DISTANCE: Final = "year_distance"
+SENSOR_YEAR_LITERS: Final = "year_liters"
+SENSOR_YEAR_COST: Final = "year_cost"
+SENSOR_YEAR_AVG_CONSUMPTION: Final = "year_avg_consumption"
+
+#: How many years of history the ``years`` attribute keeps.
+YEAR_HISTORY_YEARS: Final = 10
+
+#: What ``export_csv`` can write.
+CONF_SCOPE: Final = "scope"
+CONF_FILENAME: Final = "filename"
+EXPORT_SCOPES: Final[tuple[str, ...]] = ("fillups", "months", "years")
