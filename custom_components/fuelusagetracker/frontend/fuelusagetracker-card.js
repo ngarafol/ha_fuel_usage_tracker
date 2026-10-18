@@ -15,6 +15,8 @@ const STATS = [
   { key: "avg_consumption", label: "Avg consumption", digits: 2 },
   { key: "last_consumption", label: "Last consumption", digits: 2 },
   { key: "cost_per_km", label: "Cost per km", digits: 3 },
+  // Not money: the unit span carries the per-litre unit (e.g. "EUR/L"), like cost_per_km.
+  { key: "avg_price_per_liter", label: "Avg price per litre", digits: 3 },
   { key: "total_cost", label: "Total cost", digits: 2, money: true },
   { key: "total_liters", label: "Total litres", digits: 2 },
   { key: "total_distance", label: "Total distance", digits: 0 },

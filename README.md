@@ -123,6 +123,28 @@ picker for the rest. It shows the current statistics, records fill-ups
 odometer, and lists the 50 most recent fill-ups with delete (confirmation
 dialog).
 
+## What it looks like
+
+The card on a dashboard (real data: 8 fill-ups of a diesel Passat):
+
+![The card, light theme](docs/images/card-light.png)
+
+![The card, dark theme](docs/images/card-dark.png)
+
+Consumption per measured full-to-full leg, price per litre and cumulative spend
+(generated from the same real sensor states):
+
+![Consumption, price and cost over time](docs/images/consumption-chart.png)
+
+How the pieces are wired, and where the phase 2 receipt OCR will plug in:
+
+![Data flow](docs/images/architecture.png)
+
+All four images are reproducible: `docs/preview/card-preview.html` renders the
+real card file against an exported state file, and
+`docs/preview/make_diagrams.py` draws the chart and the diagram. Each file
+documents the exact headless-Chrome command in its header.
+
 ## Roadmap
 
 * **Phase 2 — receipt OCR.** Photograph a fuel receipt, OCR it, and feed the

@@ -21,7 +21,9 @@ this document. Change it here first, then change code.
 | `custom_components/fuelusagetracker/frontend/fuelusagetracker-card.js` | card dev | the Lovelace card |
 | `custom_components/fuelusagetracker/{strings.json,translations/,services.yaml}` | config flow dev | translations & service UI |
 | `tests/`, `pytest.ini`, `requirements_test.txt` | test dev | automated checks |
-| `README.md`, `CHANGELOG.md`, `hacs.json`, `docs/` | lead | docs & versioning |
+| `docs/preview/card-preview.html`, `docs/images/card-*.png` | preview dev | card harness + light/dark screenshots |
+| `docs/preview/make_diagrams.py`, `docs/images/{consumption-chart,architecture}.png` | lead | chart & data-flow previews |
+| `README.md`, `CHANGELOG.md`, `hacs.json`, `docs/ARCHITECTURE.md` | lead | docs & versioning |
 
 ## Vehicle model (one config entry = one vehicle = one device)
 
@@ -125,6 +127,9 @@ vehicle name); with no config it shows the first tracked vehicle and offers a
 picker. It must:
 
 * read stats from entities via the `key` attribute (never from guessed entity ids),
+* surface **every** sensor key somewhere (a tile, a last-fill row or the fill-up
+  list); a key the card never renders is a bug — `avg_price_per_liter` was exactly
+  that until 0.1.1,
 * list recent fill-ups from the `fillups` attribute of the `last_fill` entity,
 * add a fill-up through `fuelusagetracker.add_fillup`,
 * update the odometer through `fuelusagetracker.update_vehicle`,

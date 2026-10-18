@@ -1,0 +1,153 @@
+<!doctype html>
+<!--
+  Fuel Usage Tracker card preview — standalone harness, no Home Assistant needed.
+
+  Loads the real card file relatively, fakes just enough of the `hass` object
+  (states from a real HA 2026.2.3 export, formatNumber via Intl, callService as a
+  resolved no-op) and mimics the HA theme + `ha-card` element so the screenshot
+  looks like a real dashboard card.
+
+  Regenerate the screenshots (from the repo root). A writable HOME plus a fresh
+  --user-data-dir and --crash-dumps-dir per run keep Chrome healthy: on a machine
+  where crashpad cannot write its dump it still writes the PNG but exits 2, so
+  trust the "bytes written to file" line (and the PNG) over the exit status.
+  --run-all-compositor-stages-before-draw is NOT optional: without it the capture
+  races the compositor and about half the shots get a 2 px grey band stamped on
+  the last rows of the image (clean 6/6 runs with it, 3/8 without).
+
+  CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+  cd <repo root>
+  mkdir -p /tmp/fut_home /tmp/fut_crashes
+  HOME=/tmp/fut_home TMPDIR=/tmp "$CHROME" --headless=new --no-sandbox --disable-gpu \
+    --disable-dev-shm-usage --disable-crash-reporter --crash-dumps-dir=/tmp/fut_crashes \
+    --run-all-compositor-stages-before-draw --hide-scrollbars --force-device-scale-factor=2 \
+    --virtual-time-budget=3000 --window-size=560,1200 --user-data-dir=/tmp/fut_shot_light \
+    --screenshot=docs/images/card-light.png "file://$PWD/docs/preview/card-preview.html"
+  HOME=/tmp/fut_home TMPDIR=/tmp "$CHROME" --headless=new --no-sandbox --disable-gpu \
+    --disable-dev-shm-usage --disable-crash-reporter --crash-dumps-dir=/tmp/fut_crashes \
+    --run-all-compositor-stages-before-draw --hide-scrollbars --force-device-scale-factor=2 \
+    --virtual-time-budget=3000 --window-size=560,1200 --user-data-dir=/tmp/fut_shot_dark \
+    --screenshot=docs/images/card-dark.png "file://$PWD/docs/preview/card-preview.html?theme=dark"
+
+  Check the result: every pixel row below the card must be page background
+  (light #fafafa / dark #111111); if the image touches its bottom edge with grey
+  pixels, re-run that one.
+
+  Whole-card height is exposed as data-card-height on <html> (check with --dump-dom).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuel Usage Tracker card preview</title>
+<script>
+  // Theme before first paint, so the screenshot never catches a light flash.
+  var theme = new URLSearchParams(location.search).get("theme") === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = theme;
+</script>
+<style>
+  /* Home Assistant default light theme. */
+  :root {
+    --primary-color: #03a9f4;
+    --accent-color: #ff9800;
+    --primary-background-color: #fafafa;
+    --card-background-color: #ffffff;
+    --ha-card-background: #ffffff;
+    --secondary-background-color: #e5e5e5;
+    --primary-text-color: #212121;
+    --secondary-text-color: #727272;
+    --disabled-text-color: #bdbdbd;
+    --divider-color: rgba(0, 0, 0, 0.12);
+    --error-color: #db4437;
+    --text-primary-color: #ffffff;
+    --ha-card-border-radius: 12px;
+    --ha-card-border-width: 1px;
+    --ha-card-border-color: #e0e0e0;
+    --ha-card-box-shadow: none;
+  }
+  /* Home Assistant default dark theme. */
+  :root[data-theme="dark"] {
+    --primary-background-color: #111111;
+    --card-background-color: #1c1c1c;
+    --ha-card-background: #1c1c1c;
+    --secondary-background-color: #2b2b2b;
+    --primary-text-color: #e1e1e1;
+    --secondary-text-color: #9b9b9b;
+    --disabled-text-color: #6f6f6f;
+    --divider-color: rgba(225, 225, 225, 0.12);
+    --error-color: #ff6b6b;
+    --text-primary-color: #ffffff;
+    --ha-card-border-color: #2f2f2f;
+  }
+  html, body { margin: 0; }
+  body {
+    padding: 16px;
+    background: var(--primary-background-color);
+    color: var(--primary-text-color);
+    font-family: Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+</style>
+</head>
+<body>
+
+<script id="states" type="application/json">{"entry_id":"01M570MTGW0YSCB9WVV7566JNP","title":"Passat","states":[{"entity_id":"sensor.fuelusagetracker_passat_average_consumption","state":"6.74","attributes":{"state_class":"measurement","key":"avg_consumption","vehicle":"01M570MTGW0YSCB9WVV7566JNP","vehicle_name":"Passat","fuel_type":"diesel","engine":"1.6 HDi","unit_of_measurement":"L/100km"}},{"entity_id":"sensor.fuelusagetracker_passat_average_price_per_liter","state":"1.58732042473454","attributes":{"state_class":"measurement","key":"avg_price_per_liter","vehicle":"01M570MTGW0YSCB9WVV7566JNP","vehicle_name":"Passat","fuel_type":"diesel","engine":"1.6 HDi","unit_of_measurement":"EUR/L"}},{"entity_id":"sensor.fuelusagetracker_passat_cost_per_km","state":"0.1246","attributes":{"state_class":"measurement","key":"cost_per_km","vehicle":"01M570MTGW0YSCB9WVV7566JNP","vehicle_name":"Passat","fuel_type":"diesel","engine":"1.6 HDi","unit_of_measurement":"EUR/km"}},{"entity_id":"sensor.fuelusagetracker_passat_distance_since_last_fill_up","state":"0.0","attributes":{"state_class":"measurement","key":"km_since_last_fill","vehicle":"01M570MTGW0YSCB9WVV7566JNP","vehicle_name":"Passat","fuel_type":"diesel","engine":"1.6 HDi","unit_of_measurement":"km","device_class":"distance"}},{"entity_id":"sensor.fuelusagetracker_passat_fill_up_count","state":"8","attributes":{"key":"fill_count","vehicle":"01M570MTGW0YSCB9WVV7566JNP","vehicle_name":"Passat","fuel_type":"diesel","engine":"1.6 HDi"}},{"entity_id":"sensor.fuelusagetracker_passat_last_consumption","state":"6.59","attributes":{"state_class":"measurement","key":"last_consumption","vehicle":"01M570MTGW0YSCB9WVV7566JNP","vehicle_name":"Passat","fuel_type":"diesel","engine":"1.6 HDi","unit_of_measurement":"L/100km"}},{"entity_id":"sensor.fuelusagetracker_passat_last_fill_up","state":"2026-05-09T18:45:00+00:00","attributes":{"key":"last_fill","vehicle":"01M570MTGW0YSCB9WVV7566JNP","vehicle_name":"Passat","fuel_type":"diesel","engine":"1.6 HDi","fillup_id":"9f2c05c6a94b47dcac5b45bf7d199777","liters":43.5,"price":74.82,"price_per_liter":1.7199999999999998,"odometer":132530.0,"station":"INA Šibenik","full":true,"notes":null,"fillups":[{"id":"9f2c05c6a94b47dcac5b45bf7d199777","date":"2026-05-09T18:45:00+00:00","liters":43.5,"price":74.82,"odometer":132530.0,"full":true,"station":"INA Šibenik","notes":null},{"id":"c1ca64b2ebef47faa4310274e418e59d","date":"2026-04-21T08:10:00+00:00","liters":46.3,"price":76.4,"odometer":131870.0,"full":true,"station":"Shell Zadar","notes":"puni rezervoar"},{"id":"bf508df89d254929989d28dbb304c138","date":"2026-04-02T16:30:00+00:00","liters":39.7,"price":64.31,"odometer":131140.0,"full":true,"station":"INA Šibenik","notes":null},{"id":"66bd1e98ca7d42b7aa8c0199842b7595","date":"2026-03-15T07:55:00+00:00","liters":44.1,"price":71.44,"odometer":130505.0,"full":true,"station":"Lukoil Vodice","notes":"autocesta A1"},{"id":"48a1d64a6df54363948a697f3f29d885","date":"2026-02-27T18:20:00+00:00","liters":42.9,"price":66.5,"odometer":129810.0,"full":true,"station":"INA Šibenik","notes":null},{"id":"b80df0d4667d419f9572518defb8e9e0","date":"2026-02-14T09:05:00+00:00","liters":20.0,"price":30.6,"odometer":129640.0,"full":false,"station":"Petrol Konzum","notes":"samo dopuna"},{"id":"8b01913ee2884a958154e449836cf60d","date":"2026-01-28T17:40:00+00:00","liters":38.5,"price":57.75,"odometer":129120.0,"full":true,"station":"OMV Dugopolje","notes":null},{"id":"39ac1d5a41604a44ac49d6c10ea98c97","date":"2026-01-10T08:15:00+00:00","liters":45.2,"price":66.44,"odometer":128450.0,"full":true,"station":"INA Šibenik","notes":null}],"device_class":"timestamp"}},{"entity_id":"sensor.fuelusagetracker_passat_last_fill_up_cost","state":"74.82","attributes":{"key":"last_fill_cost","vehicle":"01M570MTGW0YSCB9WVV7566JNP","vehicle_name":"Passat","fuel_type":"diesel","engine":"1.6 HDi","unit_of_measurement":"EUR","device_class":"monetary"}},{"entity_id":"sensor.fuelusagetracker_passat_last_fill_up_liters","state":"43.5","attributes":{"key":"last_fill_liters","vehicle":"01M570MTGW0YSCB9WVV7566JNP","vehicle_name":"Passat","fuel_type":"diesel","engine":"1.6 HDi","unit_of_measurement":"L","device_class":"volume_storage"}},{"entity_id":"sensor.fuelusagetracker_passat_last_price_per_liter","state":"1.72","attributes":{"state_class":"measurement","key":"last_price_per_liter","vehicle":"01M570MTGW0YSCB9WVV7566JNP","vehicle_name":"Passat","fuel_type":"diesel","engine":"1.6 HDi","unit_of_measurement":"EUR/L"}},{"entity_id":"sensor.fuelusagetracker_passat_odometer","state":"132530.0","attributes":{"state_class":"total_increasing","key":"odometer","vehicle":"01M570MTGW0YSCB9WVV7566JNP","vehicle_name":"Passat","fuel_type":"diesel","engine":"1.6 HDi","unit_of_measurement":"km","device_class":"distance"}},{"entity_id":"sensor.fuelusagetracker_passat_total_cost","state":"508.26","attributes":{"state_class":"total","key":"total_cost","vehicle":"01M570MTGW0YSCB9WVV7566JNP","vehicle_name":"Passat","fuel_type":"diesel","engine":"1.6 HDi","unit_of_measurement":"EUR","device_class":"monetary"}},{"entity_id":"sensor.fuelusagetracker_passat_total_distance","state":"4080.0","attributes":{"state_class":"total_increasing","key":"total_distance","vehicle":"01M570MTGW0YSCB9WVV7566JNP","vehicle_name":"Passat","fuel_type":"diesel","engine":"1.6 HDi","unit_of_measurement":"km","device_class":"distance"}},{"entity_id":"sensor.fuelusagetracker_passat_total_liters","state":"320.2","attributes":{"state_class":"total","key":"total_liters","vehicle":"01M570MTGW0YSCB9WVV7566JNP","vehicle_name":"Passat","fuel_type":"diesel","engine":"1.6 HDi","unit_of_measurement":"L"}}]}</script>
+<script src="../../custom_components/fuelusagetracker/frontend/fuelusagetracker-card.js"></script>
+<script>
+  // --- minimal stand-ins for the two HA frontend pieces the card depends on ---
+
+  // <ha-card>: in real HA this is a styled custom element with its own shadow
+  // root; the card only adds `overflow: hidden` to it.
+  if (!customElements.get("ha-card")) {
+    customElements.define("ha-card", class extends HTMLElement {
+      constructor() {
+        super();
+        const root = this.attachShadow({ mode: "open" });
+        root.innerHTML = `<style>
+          :host {
+            display: block;
+            background: var(--ha-card-background, var(--card-background-color, #fff));
+            border: var(--ha-card-border-width, 1px) solid
+              var(--ha-card-border-color, var(--divider-color));
+            border-radius: var(--ha-card-border-radius, 12px);
+            box-shadow: var(--ha-card-box-shadow, none);
+            color: var(--primary-text-color);
+          }
+        </style><slot></slot>`;
+      }
+    });
+  }
+
+  const data = JSON.parse(document.getElementById("states").textContent);
+  const locale = { language: "hr-HR", number_format: "language" };
+  const language = locale.language;
+
+  const states = {};
+  for (const state of data.states) states[state.entity_id] = state;
+
+  const hass = {
+    states,
+    language,
+    locale,
+    config: {
+      currency: "EUR",
+      unit_system: { length: "km", volume: "L" },
+    },
+    // HA's real helper honours the configured locale; Intl is the same maths.
+    formatNumber(value, options) {
+      return new Intl.NumberFormat(locale.language, options).format(value);
+    },
+    callService() {
+      return Promise.resolve();
+    },
+  };
+
+  const card = document.createElement("fuelusagetracker-card");
+  document.body.append(card);
+  card.hass = hass;
+
+  // Diagnostics for the screenshot step: whole-card pixel height.
+  document.documentElement.setAttribute("data-card-height", String(document.body.scrollHeight));
+</script>
+</body>
+</html>

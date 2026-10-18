@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.1.1] - 2026-10-18
+
+### Added
+
+* Visual previews in the README, rendered from real sensor states: the card in
+  light and dark theme, a consumption/price/cost chart and a data-flow diagram,
+  all reproducible from `docs/preview/`.
+
+### Fixed
+
+* The card omitted the average price per litre — `avg_price_per_liter` was the
+  only sensor key that no tile, row or list rendered. It is now the fourth stat
+  tile (`1,587 EUR/L`). The contract in `docs/ARCHITECTURE.md` now requires the
+  card to surface every sensor key.
+
 ## [0.1.0] - 2026-10-18
 
 ### Added
@@ -25,4 +40,5 @@ All notable changes to this project are documented here. The format follows
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.1.1]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.1.1
 [0.1.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.1.0
