@@ -63,7 +63,6 @@ Other services:
 
 | Service | Fields |
 | --- | --- |
-| `fuelusagetracker.update_fillup` | `vehicle`, `fillup_id` + any of `liters`, `price`, `odometer`, `date`, `full`, `station`, `notes` |
 | `fuelusagetracker.delete_fillup` | `vehicle`, `fillup_id` (the card confirms before deleting) |
 | `fuelusagetracker.update_vehicle` | `vehicle` + any of `name`, `fuel_type`, `engine`, `odometer` |
 
@@ -181,10 +180,6 @@ average consumption (line) and kilometres driven — this is the comparison the
 card shows as a table too:
 
 ![Monthly comparison](docs/images/monthly-chart.png)
-
-Consumption per measured full-to-full leg, price per litre and cumulative spend:
-
-![Consumption, price and cost over time](docs/images/consumption-chart.png)
 
 How the pieces are wired, and where the phase 2 receipt OCR will plug in:
 

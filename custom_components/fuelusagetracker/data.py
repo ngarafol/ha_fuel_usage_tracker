@@ -95,7 +95,6 @@ class MonthlyUsage:
     #: Litres and kilometres of the tank-to-tank legs closed in this month.
     leg_liters: float = 0.0
     distance: float | None = None
-    last_date: datetime | None = None
 
     @property
     def month_key(self) -> str:
@@ -109,14 +108,6 @@ class MonthlyUsage:
             return None
         return round(self.leg_liters / self.distance * 100, 2)
 
-    @property
-    def avg_price_per_liter(self) -> float | None:
-        return round(self.cost / self.liters, 3) if self.liters else None
-
-    @property
-    def cost_per_km(self) -> float | None:
-        return round(self.cost / self.distance, 4) if self.distance else None
-
     def as_dict(self) -> dict[str, Any]:
         """Serialise for an entity attribute (the card compares months with this)."""
         return {
@@ -125,8 +116,6 @@ class MonthlyUsage:
             "liters": round(self.liters, 3),
             "cost": round(self.cost, 2),
             "avg_consumption": self.avg_consumption,
-            "avg_price_per_liter": self.avg_price_per_liter,
-            "cost_per_km": self.cost_per_km,
             "fill_count": self.fill_count,
         }
 
@@ -174,11 +163,6 @@ class FuelUsage:
         """Last known odometer reading."""
         readings = self._odometer_readings()
         return readings[-1] if readings else None
-
-    @property
-    def first_odometer(self) -> float | None:
-        readings = self._odometer_readings()
-        return readings[0] if readings else None
 
     @property
     def total_distance(self) -> float | None:
@@ -272,8 +256,6 @@ class FuelUsage:
             bucket.liters += fill.liters
             bucket.cost += fill.price
             bucket.fill_count += 1
-            if bucket.last_date is None or fill.date > bucket.last_date:
-                bucket.last_date = fill.date
             if (leg := legs.get(index)) is not None:
                 bucket.leg_liters += leg[0]
                 bucket.distance = (bucket.distance or 0.0) + leg[1]
@@ -320,27 +302,6 @@ class FuelUsageStore:
         await self._async_save()
         return fillup
 
-    async def async_update(self, fillup_id: str, changes: dict[str, Any]) -> FillUp | None:
-        """Update one fill-up in place; returns None when the id is unknown."""
-        for index, fill in enumerate(self.fillups):
-            if fill.id != fillup_id:
-                continue
-            updated = FillUp(
-                id=fill.id,
-                date=changes.get("date", fill.date),
-                liters=changes.get("liters", fill.liters),
-                price=changes.get("price", fill.price),
-                odometer=changes.get("odometer", fill.odometer),
-                full=changes.get("full", fill.full),
-                station=changes.get("station", fill.station),
-                notes=changes.get("notes", fill.notes),
-            )
-            self.fillups[index] = updated
-            self.fillups.sort(key=lambda item: item.date)
-            await self._async_save()
-            return updated
-        return None
-
     async def async_delete(self, fillup_id: str) -> bool:
         """Delete one fill-up; returns False when the id is unknown."""
         remaining = [fill for fill in self.fillups if fill.id != fillup_id]
@@ -383,15 +344,6 @@ class FuelUsageCoordinator(DataUpdateCoordinator[FuelUsage]):
         """Store a new fill-up and publish the recomputed statistics."""
         result = await self.store.async_add(fillup)
         self.async_set_updated_data(self._usage())
-        return result
-
-    async def async_update_fillup(
-        self, fillup_id: str, changes: dict[str, Any]
-    ) -> FillUp | None:
-        """Update a stored fill-up and publish the recomputed statistics."""
-        result = await self.store.async_update(fillup_id, changes)
-        if result is not None:
-            self.async_set_updated_data(self._usage())
         return result
 
     async def async_delete_fillup(self, fillup_id: str) -> bool:

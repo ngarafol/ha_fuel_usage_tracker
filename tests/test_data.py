@@ -8,29 +8,13 @@ odometer breaks the chain.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-
-from custom_components.fuelusagetracker.data import FillUp, FuelUsage
-
-BASE_DATE = datetime(2026, 1, 10, 9, 0, tzinfo=UTC)
-
-
-def fill(
-    index: int, liters: float, odometer: float | None, full: bool = True
-) -> FillUp:
-    return FillUp(
-        id=f"fill-{index}",
-        date=BASE_DATE + timedelta(days=index),
-        liters=liters,
-        price=liters * 1.5,
-        odometer=odometer,
-        full=full,
-    )
+from custom_components.fuelusagetracker.data import FuelUsage
+from tests.helpers import fill
 
 
 def test_two_full_fills_with_odometer_measure_consumption():
     usage = FuelUsage(
-        fillups=[fill(0, 40, 10000.0), fill(1, 45, 10500.0)],
+        fillups=[fill(40, 10000.0), fill(45, 10500.0)],
         baseline_odometer=10000.0,
     )
 
@@ -42,9 +26,9 @@ def test_two_full_fills_with_odometer_measure_consumption():
 def test_partial_fill_is_folded_into_the_leg():
     usage = FuelUsage(
         fillups=[
-            fill(0, 40, 10000.0),
-            fill(1, 10, 10250.0, full=False),
-            fill(2, 45, 10500.0),
+            fill(40, 10000.0),
+            fill(10, 10250.0, full=False),
+            fill(45, 10500.0),
         ],
         baseline_odometer=10000.0,
     )
@@ -60,9 +44,9 @@ def test_partial_fill_is_folded_into_the_leg():
 def test_partial_fill_after_the_last_full_fill_adds_litres_only():
     usage = FuelUsage(
         fillups=[
-            fill(0, 40, 10000.0),
-            fill(1, 45, 10500.0),
-            fill(2, 10, 10600.0, full=False),
+            fill(40, 10000.0),
+            fill(45, 10500.0),
+            fill(10, 10600.0, full=False),
         ],
         baseline_odometer=10000.0,
     )
@@ -77,18 +61,18 @@ def test_partial_fill_after_the_last_full_fill_adds_litres_only():
 def test_full_fill_without_odometer_resets_the_leg_chain():
     broken = FuelUsage(
         fillups=[
-            fill(0, 40, 10000.0),
-            fill(1, 30, None),
-            fill(2, 45, 10500.0),
+            fill(40, 10000.0),
+            fill(30, None),
+            fill(45, 10500.0),
         ],
         baseline_odometer=10000.0,
     )
     restarted = FuelUsage(
         fillups=[
-            fill(0, 40, 10000.0),
-            fill(1, 30, None),
-            fill(2, 45, 10500.0),
-            fill(3, 40, 11000.0),
+            fill(40, 10000.0),
+            fill(30, None),
+            fill(45, 10500.0),
+            fill(40, 11000.0),
         ],
         baseline_odometer=10000.0,
     )
@@ -102,7 +86,7 @@ def test_full_fill_without_odometer_resets_the_leg_chain():
 
 
 def test_consumption_is_unknown_without_odometer_readings():
-    usage = FuelUsage(fillups=[fill(0, 40, None), fill(1, 45, None)])
+    usage = FuelUsage(fillups=[fill(40, None), fill(45, None)])
 
     assert usage.last_consumption is None
     assert usage.avg_consumption is None

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fuelusagetracker import const
+from custom_components.fuelusagetracker.data import FillUp
 
 #: Baseline odometer (km) of the test vehicle, so distances are deterministic.
 BASE_ODOMETER = 10000.0
@@ -27,6 +29,32 @@ SENSOR_KEYS: frozenset[str] = frozenset(
 FILLUP_DATE_1 = "2026-01-10T09:00:00+00:00"
 FILLUP_DATE_MID = "2026-01-20T09:00:00+00:00"
 FILLUP_DATE_2 = "2026-02-10T09:00:00+00:00"
+
+#: Fallback instant for fixture fill-ups whose date the test does not care about.
+FILLUP_BASE_DATE = datetime.fromisoformat(FILLUP_DATE_1)
+
+
+def fill(
+    liters: float,
+    odometer: float | None = None,
+    full: bool = True,
+    *,
+    date: datetime = FILLUP_BASE_DATE,
+    fillup_id: str = "fill",
+) -> FillUp:
+    """Build a fill-up priced at 1.50 per litre, the shared fixture convention.
+
+    ``date`` and ``fillup_id`` default to a fixed anchor, so a maths-only test
+    can stay terse; any test that buckets by month passes its own ``date``.
+    """
+    return FillUp(
+        id=fillup_id,
+        date=date,
+        liters=liters,
+        price=liters * 1.5,
+        odometer=odometer,
+        full=full,
+    )
 
 
 def make_entry(**overrides: Any) -> MockConfigEntry:

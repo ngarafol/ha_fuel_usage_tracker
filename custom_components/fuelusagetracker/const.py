@@ -41,7 +41,6 @@ FUEL_TYPES: Final[tuple[str, ...]] = (
 )
 
 SERVICE_ADD_FILLUP: Final = "add_fillup"
-SERVICE_UPDATE_FILLUP: Final = "update_fillup"
 SERVICE_DELETE_FILLUP: Final = "delete_fillup"
 SERVICE_UPDATE_VEHICLE: Final = "update_vehicle"
 

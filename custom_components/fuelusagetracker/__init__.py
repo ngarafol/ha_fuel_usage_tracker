@@ -8,7 +8,6 @@ bundled Lovelace card is the intended UI.
 from __future__ import annotations
 
 import logging
-from typing import Any
 from uuid import uuid4
 
 import voluptuous as vol
@@ -37,7 +36,6 @@ from .const import (
     FUEL_TYPES,
     SERVICE_ADD_FILLUP,
     SERVICE_DELETE_FILLUP,
-    SERVICE_UPDATE_FILLUP,
     SERVICE_UPDATE_VEHICLE,
 )
 from .data import FillUp, FuelUsageCoordinator
@@ -49,16 +47,6 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 type FuelUsageConfigEntry = ConfigEntry[FuelUsageCoordinator]
 
-_FILLUP_FIELDS: dict[Any, Any] = {
-    vol.Optional(CONF_LITERS): vol.All(vol.Coerce(float), vol.Range(min=0.001)),
-    vol.Optional(CONF_PRICE): vol.All(vol.Coerce(float), vol.Range(min=0)),
-    vol.Optional(CONF_ODOMETER): vol.All(vol.Coerce(float), vol.Range(min=0)),
-    vol.Optional(CONF_DATE): cv.datetime,
-    vol.Optional(CONF_FULL): cv.boolean,
-    vol.Optional(CONF_STATION): cv.string,
-    vol.Optional(CONF_NOTES): cv.string,
-}
-
 ADD_FILLUP_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_VEHICLE): cv.string,
@@ -69,14 +57,6 @@ ADD_FILLUP_SCHEMA = vol.Schema(
         vol.Optional(CONF_FULL, default=True): cv.boolean,
         vol.Optional(CONF_STATION): cv.string,
         vol.Optional(CONF_NOTES): cv.string,
-    }
-)
-
-UPDATE_FILLUP_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_VEHICLE): cv.string,
-        vol.Required(CONF_FILLUP_ID): cv.string,
-        **_FILLUP_FIELDS,
     }
 )
 
@@ -166,20 +146,6 @@ def _async_register_services(hass: HomeAssistant) -> None:
             fillup.price,
         )
 
-    async def async_update_fillup(call: ServiceCall) -> None:
-        coordinator = _async_get_coordinator(call.hass, call.data[CONF_VEHICLE])
-        changes = {
-            key: value
-            for key, value in call.data.items()
-            if key not in (CONF_VEHICLE, CONF_FILLUP_ID)
-        }
-        if not changes:
-            raise HomeAssistantError("Nothing to update: no fill-up field was provided")
-        if not await coordinator.async_update_fillup(call.data[CONF_FILLUP_ID], changes):
-            raise HomeAssistantError(
-                f"Unknown fill-up id '{call.data[CONF_FILLUP_ID]}'"
-            )
-
     async def async_delete_fillup(call: ServiceCall) -> None:
         coordinator = _async_get_coordinator(call.hass, call.data[CONF_VEHICLE])
         if not await coordinator.async_delete_fillup(call.data[CONF_FILLUP_ID]):
@@ -201,9 +167,6 @@ def _async_register_services(hass: HomeAssistant) -> None:
 
     hass.services.async_register(
         DOMAIN, SERVICE_ADD_FILLUP, async_add_fillup, schema=ADD_FILLUP_SCHEMA
-    )
-    hass.services.async_register(
-        DOMAIN, SERVICE_UPDATE_FILLUP, async_update_fillup, schema=UPDATE_FILLUP_SCHEMA
     )
     hass.services.async_register(
         DOMAIN, SERVICE_DELETE_FILLUP, async_delete_fillup, schema=DELETE_FILLUP_SCHEMA

@@ -15,11 +15,12 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from custom_components.fuelusagetracker import const
-from custom_components.fuelusagetracker.data import FillUp, FuelUsage, MonthlyUsage
+from custom_components.fuelusagetracker.data import FuelUsage, MonthlyUsage
 from tests.helpers import (
     BASE_ODOMETER,
     SENSOR_KEYS,
     add_fillup,
+    fill,
     sensor_state,
     sensor_value,
     setup_vehicle,
@@ -55,24 +56,6 @@ def zagreb_timezone():
     dt_util.set_default_time_zone(previous)
 
 
-def fill(
-    fill_id: str,
-    when: datetime,
-    liters: float,
-    odometer: float | None = None,
-    full: bool = True,
-) -> FillUp:
-    """A fill-up priced at 1.50 per litre."""
-    return FillUp(
-        id=fill_id,
-        date=when,
-        liters=liters,
-        price=liters * 1.5,
-        odometer=odometer,
-        full=full,
-    )
-
-
 def month(usage: FuelUsage, key: str) -> MonthlyUsage:
     """The one month bucket with the given ``YYYY-MM`` key."""
     months = {item.month_key: item for item in usage.months()}
@@ -84,9 +67,9 @@ def test_same_month_aggregates_purchases_and_the_closed_leg(utc_timezone):
     """40 L full, 30 L partial, 35 L full in one month: one 65 L / 800 km leg."""
     usage = FuelUsage(
         fillups=[
-            fill("f0", JANUARY, 40, odometer=10000.0),
-            fill("f1", JANUARY, 30, odometer=10400.0, full=False),
-            fill("f2", JANUARY, 35, odometer=10800.0),
+            fill(40, 10000.0, date=JANUARY, fillup_id="f0"),
+            fill(30, 10400.0, full=False, date=JANUARY, fillup_id="f1"),
+            fill(35, 10800.0, date=JANUARY, fillup_id="f2"),
         ]
     )
 
@@ -100,9 +83,6 @@ def test_same_month_aggregates_purchases_and_the_closed_leg(utc_timezone):
     assert january.distance == 800.0
     assert january.leg_liters == 65.0
     assert january.avg_consumption == 8.12
-    # Rates on the purchased-month basis.
-    assert january.avg_price_per_liter == 1.5
-    assert january.cost_per_km == 0.1969
 
 
 def test_partial_fill_counts_towards_its_own_month_but_consumes_in_the_closing_month(
@@ -111,9 +91,9 @@ def test_partial_fill_counts_towards_its_own_month_but_consumes_in_the_closing_m
     """The 30 L bought in January closes a February leg."""
     usage = FuelUsage(
         fillups=[
-            fill("f0", JANUARY, 40, odometer=10000.0),
-            fill("f1", JANUARY, 30, odometer=10400.0, full=False),
-            fill("f2", FEBRUARY, 35, odometer=10800.0),
+            fill(40, 10000.0, date=JANUARY, fillup_id="f0"),
+            fill(30, 10400.0, full=False, date=JANUARY, fillup_id="f1"),
+            fill(35, 10800.0, date=FEBRUARY, fillup_id="f2"),
         ]
     )
 
@@ -139,7 +119,12 @@ def test_month_bucketing_uses_local_time(zagreb_timezone):
     """23:30 UTC on 31 January is already February in a UTC+1 zone."""
     usage = FuelUsage(
         fillups=[
-            fill("f0", datetime(2026, 1, 31, 23, 30, tzinfo=UTC), 40, odometer=10000.0)
+            fill(
+                40,
+                10000.0,
+                date=datetime(2026, 1, 31, 23, 30, tzinfo=UTC),
+                fillup_id="f0",
+            )
         ]
     )
 
@@ -149,7 +134,12 @@ def test_month_bucketing_uses_local_time(zagreb_timezone):
 def test_month_bucketing_stays_in_january_under_utc(utc_timezone):
     usage = FuelUsage(
         fillups=[
-            fill("f0", datetime(2026, 1, 31, 23, 30, tzinfo=UTC), 40, odometer=10000.0)
+            fill(
+                40,
+                10000.0,
+                date=datetime(2026, 1, 31, 23, 30, tzinfo=UTC),
+                fillup_id="f0",
+            )
         ]
     )
 
@@ -159,8 +149,13 @@ def test_month_bucketing_stays_in_january_under_utc(utc_timezone):
 def test_months_without_fillups_are_omitted_not_zeroed(utc_timezone):
     usage = FuelUsage(
         fillups=[
-            fill("f0", JANUARY, 40, odometer=10000.0),
-            fill("f1", datetime(2026, 3, 10, 9, 0, tzinfo=UTC), 45, odometer=10500.0),
+            fill(40, 10000.0, date=JANUARY, fillup_id="f0"),
+            fill(
+                45,
+                10500.0,
+                date=datetime(2026, 3, 10, 9, 0, tzinfo=UTC),
+                fillup_id="f1",
+            ),
         ]
     )
 
@@ -171,9 +166,14 @@ def test_months_without_fillups_are_omitted_not_zeroed(utc_timezone):
 def test_months_are_newest_first(utc_timezone):
     usage = FuelUsage(
         fillups=[
-            fill("f0", datetime(2026, 1, 10, 9, 0, tzinfo=UTC), 40, odometer=10000.0),
-            fill("f1", datetime(2026, 3, 10, 9, 0, tzinfo=UTC), 40, odometer=10500.0),
-            fill("f2", datetime(2026, 2, 10, 9, 0, tzinfo=UTC), 40, odometer=10250.0),
+            fill(40, 10000.0, date=JANUARY, fillup_id="f0"),
+            fill(
+                40,
+                10500.0,
+                date=datetime(2026, 3, 10, 9, 0, tzinfo=UTC),
+                fillup_id="f1",
+            ),
+            fill(40, 10250.0, date=FEBRUARY, fillup_id="f2"),
         ]
     )
 
@@ -195,7 +195,12 @@ async def test_month_cost_history_shape_order_and_cap(hass, utc_timezone):
 
     for index, when in enumerate(dates):
         await coordinator.async_add_fillup(
-            fill(f"fill-{index}", when, 40.0 + index, odometer=BASE_ODOMETER + index * 100)
+            fill(
+                40.0 + index,
+                BASE_ODOMETER + index * 100,
+                date=when,
+                fillup_id=f"fill-{index}",
+            )
         )
     await hass.async_block_till_done()
 

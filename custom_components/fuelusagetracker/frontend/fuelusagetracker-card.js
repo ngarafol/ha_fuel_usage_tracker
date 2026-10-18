@@ -108,8 +108,7 @@ class FuelUsageTrackerCard extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._built = false;
     this._selected = null;
-    this._showAllFills = false;
-    this._showAllMonths = false;
+    this._showAll = {};
     this._busy = false;
     this._error = null;
   }
@@ -399,38 +398,21 @@ class FuelUsageTrackerCard extends HTMLElement {
       ])
     );
 
-    // Recent fill-ups.
+    // Collapsible lists; each section head carries the shared Show all toggle.
+    const toggles = {};
     const fillNodes = el("div", { class: "fills" });
-    const showAllButton = el("button", {
-      class: "link",
-      type: "button",
-      text: "Show all",
-      onclick: () => this._toggleFills(),
-    });
     card.append(
       el("div", { class: "section" }, [
-        el("div", { class: "section-head" }, [
-          el("span", { text: "Recent fill-ups" }),
-          showAllButton,
-        ]),
+        this._showAllHead("fills", "Recent fill-ups", toggles),
         fillNodes,
       ])
     );
 
     // Monthly comparison (from the `months` attribute of the month_cost entity).
     const monthNodes = el("div", { class: "months" });
-    const showAllMonthsButton = el("button", {
-      class: "link",
-      type: "button",
-      text: "Show all",
-      onclick: () => this._toggleMonths(),
-    });
     card.append(
       el("div", { class: "section" }, [
-        el("div", { class: "section-head" }, [
-          el("span", { text: "Monthly comparison" }),
-          showAllMonthsButton,
-        ]),
+        this._showAllHead("months", "Monthly comparison", toggles),
         monthNodes,
       ])
     );
@@ -445,9 +427,8 @@ class FuelUsageTrackerCard extends HTMLElement {
       odoInput,
       odoButton,
       fillNodes,
-      showAllButton,
       monthNodes,
-      showAllMonthsButton,
+      toggles,
     };
     this._update(vehicle);
   }
@@ -489,16 +470,40 @@ class FuelUsageTrackerCard extends HTMLElement {
     this._renderMonths(vehicle, currency);
   }
 
+  /**
+   * Section head carrying the shared "Show all (N)"/"Show less" toggle.
+   * `key` names the collapsible list; the toggle lands in `toggles[key]`.
+   */
+  _showAllHead(key, title, toggles) {
+    const toggle = el("button", {
+      class: "link",
+      type: "button",
+      text: "Show all",
+      onclick: () => this._toggle(key),
+    });
+    toggles[key] = toggle;
+    return el("div", { class: "section-head" }, [el("span", { text: title }), toggle]);
+  }
+
+  /**
+   * Sync the toggle for `key` and return how many rows to render: all of them
+   * when expanded, otherwise `collapsed`. The toggle hides itself when there is
+   * nothing collapsed.
+   */
+  _showAllRows(key, total, collapsed) {
+    const toggle = this._refs.toggles[key];
+    const expanded = !!this._showAll[key];
+    toggle.hidden = total <= collapsed;
+    toggle.textContent = expanded ? "Show less" : `Show all (${total})`;
+    return expanded ? total : collapsed;
+  }
+
   _renderFills(vehicle, currency) {
     const fills = this._fillups(vehicle);
     const nodes = this._refs.fillNodes;
-    const limit = this._showAllFills ? fills.length : 5;
+    const limit = this._showAllRows("fills", fills.length, 5);
     this._displayedFills = Math.min(limit, fills.length);
     nodes.innerHTML = "";
-    this._refs.showAllButton.hidden = fills.length <= 5;
-    this._refs.showAllButton.textContent = this._showAllFills
-      ? "Show less"
-      : `Show all (${fills.length})`;
 
     if (!fills.length) {
       nodes.append(el("div", { class: "empty", text: "No fill-ups recorded yet." }));
@@ -570,11 +575,7 @@ class FuelUsageTrackerCard extends HTMLElement {
     const attrs = (state && state.attributes) || {};
     const months = Array.isArray(attrs.months) ? attrs.months : [];
     const currentKey = attrs.month || null;
-    const limit = this._showAllMonths ? months.length : 12;
-    this._refs.showAllMonthsButton.hidden = months.length <= 12;
-    this._refs.showAllMonthsButton.textContent = this._showAllMonths
-      ? "Show less"
-      : `Show all (${months.length})`;
+    const limit = this._showAllRows("months", months.length, 12);
 
     if (!months.length) {
       container.append(el("div", { class: "empty", text: "No monthly data yet." }));
@@ -644,16 +645,13 @@ class FuelUsageTrackerCard extends HTMLElement {
     this._render();
   }
 
-  _toggleFills() {
-    this._showAllFills = !this._showAllFills;
+  _toggle(key) {
+    this._showAll[key] = !this._showAll[key];
     const vehicle = this._vehicle();
-    if (vehicle) this._renderFills(vehicle, this._currency(vehicle));
-  }
-
-  _toggleMonths() {
-    this._showAllMonths = !this._showAllMonths;
-    const vehicle = this._vehicle();
-    if (vehicle) this._renderMonths(vehicle, this._currency(vehicle));
+    if (!vehicle) return;
+    const currency = this._currency(vehicle);
+    if (key === "fills") this._renderFills(vehicle, currency);
+    else this._renderMonths(vehicle, currency);
   }
 
   // --- actions ------------------------------------------------------------

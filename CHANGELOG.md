@@ -4,6 +4,35 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.3.0] - 2026-10-18
+
+Complexity audit (ponytail-audit) applied — nothing was removed that had a
+consumer, and no behaviour changed except the two removals listed below.
+
+### Removed
+
+* **Breaking:** the `fuelusagetracker.update_fillup` service (schema, handler and
+  the matching store/coordinator update paths). Nothing called it: not the card,
+  not the docs examples, not the tests. Correct a fill-up by deleting it and
+  recording it again.
+* The per-leg consumption chart preview (`docs/preview/consumption-chart.html`,
+  `docs/images/consumption-chart.png`); the monthly chart covers the same data.
+* `MonthlyUsage.avg_price_per_liter` and `cost_per_km` from the `months`
+  payload (never rendered by the card), `MonthlyUsage.last_date` (written, never
+  read) and `FuelUsage.first_odometer` (no caller).
+
+### Changed
+
+* `sensor.py`: every description now carries its own `value_fn` (plus
+  `unit_template`/`monthly` flags) instead of three module-level tables keyed by
+  the same 19 keys — the description tuple is the single source of truth.
+* The card implements "Show all" once for both lists (was written twice).
+* The tests share one `fill()` fixture builder (was written twice).
+* Dependencies and defaults: the frontend runtime guard that the manifest
+  dependency already guarantees is gone, together with an empty `requirements`
+  list, `zip_release: false`, the pytest loop-scope default and speculative
+  `.gitignore` entries.
+
 ## [0.2.0] - 2026-10-18
 
 ### Added
@@ -69,6 +98,7 @@ All notable changes to this project are documented here. The format follows
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.3.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.3.0
 [0.2.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.2.0
 [0.1.1]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.1.1
 [0.1.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.1.0

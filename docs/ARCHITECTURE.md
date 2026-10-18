@@ -22,7 +22,7 @@ this document. Change it here first, then change code.
 | `custom_components/fuelusagetracker/{strings.json,translations/,services.yaml}` | config flow dev | translations & service UI |
 | `tests/`, `pytest.ini`, `requirements_test.txt` | test dev | automated checks |
 | `docs/preview/card-preview.html`, `docs/images/card-*.png` | preview dev | card harness + light/dark screenshots |
-| `docs/preview/make_diagrams.py`, `docs/images/{consumption-chart,architecture}.png` | lead | chart & data-flow previews |
+| `docs/preview/make_diagrams.py`, `docs/images/{monthly-chart,architecture}.png` | lead | chart & data-flow previews |
 | `README.md`, `CHANGELOG.md`, `hacs.json`, `docs/ARCHITECTURE.md` | lead | docs & versioning |
 
 ## Vehicle model (one config entry = one vehicle = one device)
@@ -61,7 +61,6 @@ version `1`, shape `{"fillups": [<fill-up dict>]}`.
 | Service | Fields |
 | --- | --- |
 | `fuelusagetracker.add_fillup` | `vehicle` (required, entry id or title), `liters` (required, > 0), `price` (required, total, >= 0), `odometer` (>= 0), `date` (datetime), `full` (bool, default `true`), `station`, `notes` |
-| `fuelusagetracker.update_fillup` | `vehicle`, `fillup_id` + any subset of `liters`, `price`, `odometer`, `date`, `full`, `station`, `notes` |
 | `fuelusagetracker.delete_fillup` | `vehicle`, `fillup_id` |
 | `fuelusagetracker.update_vehicle` | `vehicle` + any subset of `name`, `fuel_type`, `engine`, `odometer` |
 

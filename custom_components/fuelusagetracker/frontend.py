@@ -32,9 +32,8 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     ``add_extra_js_url`` inserts the URL into
     ``hass.data[DATA_EXTRA_MODULE_URL]`` (a ``UrlManager`` built by the frontend
     component's ``async_setup``), which the index template renders as
-    ``<script type="module" src=...>``. That component is optional (it is absent
-    in bare test harnesses), so the module URL is only registered when the
-    frontend is actually running.
+    ``<script type="module" src=...>``. The frontend component is a declared
+    dependency of this integration, so it is always available here.
     """
     if hass.http is None:
         _LOGGER.debug("HTTP not set up; not serving the %s card", DOMAIN)
@@ -48,12 +47,6 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     await hass.http.async_register_static_paths(
         [StaticPathConfig(CARD_URL, str(CARD_FILE), False)]
     )
-
-    if "frontend" in hass.config.components:
-        add_extra_js_url(hass, CARD_URL)
-    else:
-        _LOGGER.debug(
-            "Frontend not set up; %s is served at %s but not auto-loaded",
-            CARD_FILENAME,
-            CARD_URL,
-        )
+    # The manifest declares the frontend component as a dependency, so it is
+    # always set up before this runs and the module URL can be registered.
+    add_extra_js_url(hass, CARD_URL)

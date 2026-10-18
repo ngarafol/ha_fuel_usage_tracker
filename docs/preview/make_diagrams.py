@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Generate the preview diagrams (consumption chart + data flow) for the docs.
+"""Generate the preview diagrams (monthly comparison + data flow) for the docs.
 
 Reads the real exported HA sensor states from /tmp/fut_states.json and writes
 two self-contained HTML pages next to this script:
 
-    docs/preview/consumption-chart.html   -> docs/images/consumption-chart.png
-    docs/preview/architecture.html        -> docs/images/architecture.png
+    docs/preview/monthly-chart.html   -> docs/images/monthly-chart.png
+    docs/preview/architecture.html    -> docs/images/architecture.png
 
 Regenerate the state export first (throwaway pytest run), then:
 
@@ -15,12 +15,6 @@ Regenerate the state export first (throwaway pytest run), then:
     # --window-size must be LARGER than the page: Chrome's --screenshot then
     # captures a page-sized picture with blank space around it, which the last
     # step trims off. Undersizing the window silently crops the drawing.
-    "$CHROME" --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
-      --disable-crash-reporter --run-all-compositor-stages-before-draw \
-      --user-data-dir="$(mktemp -d)" --force-device-scale-factor=2 \
-      --window-size=2200,1800 --virtual-time-budget=1500 \
-      --screenshot=docs/images/consumption-chart.png \
-      "file://$PWD/docs/preview/consumption-chart.html"
     "$CHROME" --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
       --disable-crash-reporter --run-all-compositor-stages-before-draw \
       --user-data-dir="$(mktemp -d)" --force-device-scale-factor=2 \
@@ -50,7 +44,6 @@ from custom_components.fuelusagetracker.data import FillUp, FuelUsage  # noqa: E
 
 STATES = Path("/tmp/fut_states.json")
 
-CARD = "card-background-color"
 INK = "#1c1c1e"
 MUTED = "#6b7280"
 GRID = "#e5e7eb"
@@ -82,19 +75,6 @@ def load() -> dict:
     }
 
 
-def legs(usage: FuelUsage) -> list[dict]:
-    """Tank-to-tank legs closed per fill-up, from the integration's own maths."""
-    return [
-        {
-            "date": usage.fillups[index].date,
-            "distance": distance,
-            "liters": liters,
-            "consumption": liters / distance * 100,
-        }
-        for index, liters, distance in usage._leg_rows()
-    ]
-
-
 def hr(value: float, digits: int = 2) -> str:
     """Format a number the way the Croatian UI does: 1.234,56."""
     formatted = f"{value:,.{digits}f}"
@@ -113,155 +93,6 @@ def esc(text: object) -> str:
 def text(x: float, y: float, content: object, **kw) -> str:
     attrs = " ".join(f'{k.rstrip("_").replace("_", "-")}="{v}"' for k, v in kw.items())
     return f'<text x="{x:.1f}" y="{y:.1f}" {attrs}>{esc(content)}</text>'
-
-
-def chart_html(data: dict, leg_rows: list[dict]) -> str:
-    title = data["title"]
-    sensors = data["sensors"]
-    fillups = data["fillups"]
-
-    x0, x1 = 78.0, 880.0
-    y0, y1 = 92.0, 452.0  # panel A plot area
-    y2, y3 = 560.0, 700.0  # panel B plot area
-
-    max_cons = max(row["consumption"] for row in leg_rows) * 1.35
-    prices = [fill["price"] / fill["liters"] for fill in fillups]
-    price_min, price_max = min(prices) * 0.94, max(prices) * 1.06
-    total_cost = float(sensors["total_cost"]["state"])
-    cum = 0.0
-    cumulative: list[tuple[float, float]] = []
-    for index, fill in enumerate(fillups):
-        cum += fill["price"]
-        cumulative.append((index, cum))
-
-    svg: list[str] = [
-        f'<svg viewBox="0 0 {CHART_W} {CHART_H}" width="{CHART_W}" height="{CHART_H}" '
-        'xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, sans-serif">',
-        f'<rect width="{CHART_W}" height="{CHART_H}" rx="14" fill="#fff"/>',
-        text(40, 46, f"{title} — potrošnja, cijena i trošak kroz vrijeme",
-             font_size="20", font_weight="600", fill=INK),
-        text(40, 70,
-             f"prosjek {hr(float(sensors['avg_consumption']['state']))} L/100km · "
-             f"prosječna cijena {hr(float(sensors['avg_price_per_liter']['state']))} €/L · "
-             f"{hr(float(sensors['cost_per_km']['state']), 3)} €/km · "
-             f"ukupno {hr(total_cost)} € kroz {hr(float(sensors['total_distance']['state']), 0)} km",
-             font_size="13", fill=MUTED),
-    ]
-
-    # --- panel A grid + axes -------------------------------------------------
-    ticks = 5
-    for step in range(ticks + 1):
-        value = max_cons / ticks * step
-        y = y1 - (y1 - y0) * step / ticks
-        svg.append(
-            f'<line x1="{x0}" y1="{y:.1f}" x2="{x1}" y2="{y:.1f}" stroke="{GRID}" stroke-width="1"/>'
-        )
-        svg.append(text(x0 - 12, y + 4, f"{value:.0f}", font_size="11", fill=MUTED, text_anchor="end"))
-    for step in range(ticks + 1):
-        value = price_min + (price_max - price_min) * step / ticks
-        y = y1 - (y1 - y0) * step / ticks
-        svg.append(
-            text(x1 + 12, y + 4, hr(value), font_size="11", fill=ORANGE, text_anchor="start")
-        )
-    svg.append(text(x0 - 12, y0 - 18, "L/100km", font_size="11", fill=MUTED, text_anchor="end"))
-    svg.append(text(x1 + 12, y0 - 18, "€/L", font_size="11", fill=ORANGE, text_anchor="start"))
-
-    # --- panel A: consumption bars ------------------------------------------
-    band = (x1 - x0) / len(leg_rows)
-    bar_w = band * 0.44
-    for index, row in enumerate(leg_rows):
-        center = x0 + band * (index + 0.5)
-        height = (y1 - y0) * row["consumption"] / max_cons
-        svg.append(
-            f'<rect x="{center - bar_w / 2:.1f}" y="{y1 - height:.1f}" width="{bar_w:.1f}" '
-            f'height="{height:.1f}" rx="4" fill="{BLUE}" opacity="0.9"/>'
-        )
-        svg.append(
-            text(center, y1 - height - 8, f"{row['consumption']:.2f}", font_size="12",
-                 font_weight="600", fill=BLUE, text_anchor="middle")
-        )
-        crowded = len(leg_rows) > 8
-        svg.append(
-            text(center, y1 + 20,
-                 row["date"].strftime("%d.%m.") if crowded else row["date"].strftime("%d.%m.%Y"),
-                 font_size="10.5" if crowded else "11", fill=MUTED, text_anchor="middle")
-        )
-        svg.append(
-            text(center, y1 + 36,
-                 f"{row['distance']:.0f} km" if crowded
-                 else f"{row['distance']:.0f} km · {row['liters']:.1f} L",
-                 font_size="10.5", fill=MUTED, text_anchor="middle")
-        )
-
-    # --- panel A: price per litre line --------------------------------------
-    price_band = (x1 - x0) / len(fillups)
-    points = []
-    for index, fill in enumerate(fillups):
-        price = fill["price"] / fill["liters"]
-        px = x0 + price_band * (index + 0.5)
-        py = y1 - (y1 - y0) * (price - price_min) / (price_max - price_min)
-        points.append((px, py, price))
-    path = " ".join(f"{'M' if i == 0 else 'L'}{px:.1f} {py:.1f}" for i, (px, py, _) in enumerate(points))
-    svg.append(f'<path d="{path}" fill="none" stroke="{ORANGE}" stroke-width="2.5"/>')
-    label_every = max(1, len(points) // 10)
-    for index, (px, py, price) in enumerate(points):
-        svg.append(f'<circle cx="{px:.1f}" cy="{py:.1f}" r="4" fill="#fff" stroke="{ORANGE}" stroke-width="2.5"/>')
-        if index % label_every == 0 or index == len(points) - 1:
-            svg.append(text(px, py - 12, f"{price:.2f}", font_size="10.5", fill=ORANGE, text_anchor="middle"))
-
-    # --- panel B: cumulative cost -------------------------------------------
-    max_cost = cumulative[-1][1] * 1.08
-    for step in range(5):
-        value = max_cost / 4 * step
-        y = y3 - (y3 - y2) * step / 4
-        svg.append(f'<line x1="{x0}" y1="{y:.1f}" x2="{x1}" y2="{y:.1f}" stroke="{GRID}" stroke-width="1"/>')
-        svg.append(text(x0 - 12, y + 4, f"{value:.0f}", font_size="11", fill=MUTED, text_anchor="end"))
-    svg.append(text(x0 - 12, y2 - 18, "€ ukupno", font_size="11", fill=MUTED, text_anchor="end"))
-    svg.append(text(40, y2 - 30, "Kumulativni trošak goriva", font_size="15", font_weight="600", fill=INK))
-
-    cum_points = []
-    for index, total in cumulative:
-        px = x0 + price_band * (index + 0.5)
-        py = y3 - (y3 - y2) * total / max_cost
-        cum_points.append((px, py, total))
-    area = (
-        f"M{x0} {y3} "
-        + " ".join(f"L{px:.1f} {py:.1f}" for px, py, _ in cum_points)
-        + f" L{cum_points[-1][0]:.1f} {y3} Z"
-    )
-    svg.append(f'<path d="{area}" fill="{GREEN}" opacity="0.12"/>')
-    svg.append(
-        '<path d="'
-        + " ".join(f"{'M' if i == 0 else 'L'}{px:.1f} {py:.1f}" for i, (px, py, _) in enumerate(cum_points))
-        + f'" fill="none" stroke="{GREEN}" stroke-width="2.5"/>'
-    )
-    for index, (px, py, total) in enumerate(cum_points):
-        svg.append(f'<circle cx="{px:.1f}" cy="{py:.1f}" r="3.5" fill="{GREEN}"/>')
-        if index in (0, len(cum_points) - 1):
-            svg.append(
-                text(px, py - 10, f"{total:.2f} €", font_size="11", font_weight="600",
-                     fill=GREEN, text_anchor="middle")
-            )
-    svg.append(
-        text(x1, y3 + 18,
-             f"{len(fillups)} tankanja · {sum(f['liters'] for f in fillups):.1f} L · "
-             f"prosjek {cumulative[-1][1] / len(fillups):.2f} € po tankanju",
-             font_size="11", fill=MUTED, text_anchor="end")
-    )
-
-    # legend
-    svg.append(f'<rect x="{x0}" y="{y1 + 54}" width="14" height="14" rx="3" fill="{BLUE}"/>')
-    svg.append(text(x0 + 22, y1 + 66, "potrošnja po legu (full-to-full)", font_size="12", fill=MUTED))
-    svg.append(f'<circle cx="{x0 + 250}" cy="{y1 + 61}" r="6" fill="#fff" stroke="{ORANGE}" stroke-width="2.5"/>')
-    svg.append(text(x0 + 264, y1 + 66, "cijena po litri", font_size="12", fill=MUTED))
-    svg.append("</svg>")
-
-    return (
-        "<!doctype html>\n<html lang=\"hr\">\n<head>\n<meta charset=\"utf-8\">\n"
-        "<title>Fuel Usage Tracker — graf potrošnje</title>\n"
-        "<style>html,body{margin:0;padding:0;background:#f4f5f7}</style>\n</head>\n"
-        "<body>\n" + "\n".join(svg) + "\n</body>\n</html>\n"
-    )
 
 
 def architecture_html(title: str) -> str:
@@ -482,18 +313,16 @@ def crop_to_content(path: Path) -> tuple[int, int]:
 
 def main() -> None:
     if "--crop" in sys.argv:
-        for name in ("consumption-chart.png", "monthly-chart.png", "architecture.png"):
+        for name in ("monthly-chart.png", "architecture.png"):
             png = HERE.parent / "images" / name
             if png.exists():
                 width, height = crop_to_content(png)
                 print(f"cropped {png.name} -> {width}x{height}")
         return
     data = load()
-    leg_rows = legs(data["usage"])
-    (HERE / "consumption-chart.html").write_text(chart_html(data, leg_rows))
     (HERE / "monthly-chart.html").write_text(monthly_chart_html(data, data["months"]))
     (HERE / "architecture.html").write_text(architecture_html(data["title"]))
-    print(f"legs: {len(leg_rows)}, fill-ups: {len(data['fillups'])}, months: {len(data['months'])}")
+    print(f"fill-ups: {len(data['fillups'])}, months: {len(data['months'])}")
     for row in data["months"]:
         print(
             f"  {row['month']}  {row['distance'] or 0:6.0f} km  {row['liters']:6.1f} L  "
