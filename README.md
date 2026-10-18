@@ -128,7 +128,9 @@ experienced.
 
 For automations and dashboards, the `cost_this_month` sensor carries a `months`
 attribute with the newest-first history (up to 24 months), and the card renders
-it as a comparison table with the change against the previous month.
+it as a comparison table with the change against the previous month:
+
+![Monthly comparison table in the card](docs/images/card-monthly-section.png)
 
 If you prefer Home Assistant's own monthly statistics entities, three helper
 lines do the same job natively:
