@@ -95,4 +95,10 @@ YEAR_HISTORY_YEARS: Final = 10
 #: What ``export_csv`` can write.
 CONF_SCOPE: Final = "scope"
 CONF_FILENAME: Final = "filename"
+CONF_FORMAT: Final = "format"
 EXPORT_SCOPES: Final[tuple[str, ...]] = ("fillups", "months", "years")
+
+#: ``standard`` is comma separated with dot decimals (scripts, pandas);
+#: ``excel_hr`` is semicolon separated with comma decimals, which is what Excel
+#: expects in a Croatian/European locale.
+EXPORT_FORMATS: Final[tuple[str, ...]] = ("standard", "excel_hr")

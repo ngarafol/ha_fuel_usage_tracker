@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.5.0] - 2026-10-18
+
+### Added
+
+* The card shows the current year as tiles ("This year" cost and consumption),
+  next to the existing month tiles.
+* `export_csv` gained `format`: `standard` (comma separated, dot decimals, LF —
+  unchanged default) and `excel_hr` (semicolon separated, comma decimals, CRLF),
+  which is what Excel expects in a Croatian/European locale.
+* README recipe for a scheduled export (automation trigger + `notify` target),
+  including a templated file name; scheduling itself stays a Home Assistant
+  automation concern.
+
 ## [0.4.0] - 2026-10-18
 
 ### Added
@@ -123,6 +136,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.5.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.5.0
 [0.4.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.4.0
 [0.3.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.3.0
 [0.2.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.2.0

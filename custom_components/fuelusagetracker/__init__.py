@@ -36,11 +36,13 @@ from .const import (
     CONF_NAME,
     CONF_NOTES,
     CONF_ODOMETER,
+    CONF_FORMAT,
     CONF_PRICE,
     CONF_SCOPE,
     CONF_STATION,
     CONF_VEHICLE,
     DOMAIN,
+    EXPORT_FORMATS,
     EXPORT_SCOPES,
     FUEL_TYPES,
     SERVICE_ADD_FILLUP,
@@ -93,6 +95,7 @@ EXPORT_CSV_SCHEMA = vol.Schema(
         vol.Required(CONF_VEHICLE): cv.string,
         vol.Optional(CONF_SCOPE, default="fillups"): vol.In(EXPORT_SCOPES),
         vol.Optional(CONF_FILENAME): cv.string,
+        vol.Optional(CONF_FORMAT, default="standard"): vol.In(EXPORT_FORMATS),
     }
 )
 
@@ -188,7 +191,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
         entry = _async_get_entry(call.hass, call.data[CONF_VEHICLE])
         scope = call.data[CONF_SCOPE]
         coordinator = _async_get_coordinator(call.hass, call.data[CONF_VEHICLE])
-        text, rows = build_csv(coordinator.data, scope)
+        text, rows = build_csv(coordinator.data, scope, call.data[CONF_FORMAT])
         path = csv_path(call.hass, entry.title, scope, call.data.get(CONF_FILENAME))
         await call.hass.async_add_executor_job(path.write_text, text, ENCODING)
         _LOGGER.info("Exported %s %s rows to %s", rows, scope, path)

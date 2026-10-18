@@ -64,13 +64,18 @@ version `1`, shape `{"fillups": [<fill-up dict>]}`.
 | `fuelusagetracker.add_fillup` | `vehicle` (required, entry id or title), `liters` (required, > 0), `price` (required, total, >= 0), `odometer` (>= 0), `date` (datetime), `full` (bool, default `true`), `station`, `notes` |
 | `fuelusagetracker.delete_fillup` | `vehicle`, `fillup_id` |
 | `fuelusagetracker.update_vehicle` | `vehicle` + any subset of `name`, `fuel_type`, `engine`, `odometer` |
-| `fuelusagetracker.export_csv` | `vehicle`, `scope` (`fillups` \| `months` \| `years`, default `fillups`), `filename` (plain `.csv` name, optional). Returns `{path, rows}` (`SupportsResponse.OPTIONAL`). |
+| `fuelusagetracker.export_csv` | `vehicle`, `scope` (`fillups` \| `months` \| `years`, default `fillups`), `filename` (plain `.csv` name, optional), `format` (`standard` \| `excel_hr`, default `standard`). Returns `{path, rows}` (`SupportsResponse.OPTIONAL`). |
 
 Unknown vehicle or unknown fill-up id raises `HomeAssistantError`. `export_csv`
 writes into the Home Assistant config directory only: a `filename` with a path
 separator, a parent reference or a hidden-file prefix is rejected, and the
 default name is `fuelusagetracker_<vehicle>_<scope>.csv`. The file is UTF-8 with
-a BOM so Excel reads Croatian station names correctly.
+a BOM so Excel reads Croatian station names correctly. `format: standard` is
+comma separated with dot decimals and LF endings (scripts, pandas);
+`format: excel_hr` is semicolon separated with comma decimals and CRLF endings,
+which is what Excel expects in a Croatian/European locale. Scheduling an export
+is not integration code: Home Assistant automations trigger the service and any
+`notify` target delivers the returned path (README recipe).
 
 ## Entities
 
@@ -209,9 +214,10 @@ picker. It must:
   rule stays a review rule; the machine-checked guard covers the period payload
   (`PeriodUsage.as_dict()` keys must all be read by the card),
 * list recent fill-ups from the `fillups` attribute of the `last_fill` entity,
-* show the current month (`month_cost`, `month_avg_consumption` tiles), a
-  compact **last 12 months** summary line (the four `rolling_*` values, labelled
-  with their `window` attribute) and **two** comparison tables read from the
+* show the current month and the current year (`month_cost`, `month_avg_consumption`,
+  `year_cost`, `year_avg_consumption` tiles, each labelled with its `month`/`year`
+  attribute), a compact **last 12 months** summary line (the four `rolling_*` values,
+  labelled with their `window` attribute) and **two** comparison tables read from the
   `months` attribute of `month_cost` and the `years` attribute of `year_cost`:
   period, km, litres, cost, L/100km and fill-up count, plus the change against
   the previous period (consumption, cost and km). Both tables share one renderer.

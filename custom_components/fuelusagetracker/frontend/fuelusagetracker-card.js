@@ -22,9 +22,11 @@ const STATS = [
   { key: "total_distance", label: "Total distance", digits: 0 },
   { key: "km_since_last_fill", label: "Km since last fill", digits: 0 },
   { key: "fill_count", label: "Fill-ups", digits: 0 },
-  // `month: true` also shows the entity's `month` attribute (YYYY-MM) in the tile.
-  { key: "month_cost", label: "This month", digits: 2, money: true, month: true },
-  { key: "month_avg_consumption", label: "This month consumption", digits: 2, month: true },
+  // `period` names the entity attribute (month/year) shown next to the tile.
+  { key: "month_cost", label: "This month", digits: 2, money: true, period: "month" },
+  { key: "month_avg_consumption", label: "This month consumption", digits: 2, period: "month" },
+  { key: "year_cost", label: "This year", digits: 2, money: true, period: "year" },
+  { key: "year_avg_consumption", label: "This year consumption", digits: 2, period: "year" },
 ];
 
 /** Trailing-window strip: sensor key, field label, fraction digits, money flag. */
@@ -519,8 +521,9 @@ class FuelUsageTrackerCard extends HTMLElement {
       const state = this._entity(vehicle, key);
       ref.amount.textContent = this._value(state, ref.stat.digits, ref.stat.money ? currency : null);
       ref.unit.textContent = ref.stat.money ? "" : this._unit(state);
-      const month = (state && state.attributes && state.attributes.month) || "";
-      ref.month.textContent = ref.stat.month && month ? this._periodLabel(month) : "";
+      const stamp =
+        (ref.stat.period && state && state.attributes && state.attributes[ref.stat.period]) || "";
+      ref.month.textContent = stamp ? this._periodLabel(stamp) : "";
     }
 
     const last = this._entity(vehicle, "last_fill");

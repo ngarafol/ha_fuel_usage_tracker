@@ -164,3 +164,13 @@ export_csv:
       example: passat_gorivo.csv
       selector:
         text:
+    format:
+      name: Format
+      description: Standard uses comma separated fields with dot decimals. Excel HR uses semicolon separated fields with comma decimals, which is what Excel expects in a Croatian locale.
+      required: false
+      default: standard
+      selector:
+        select:
+          options:
+            - standard
+            - excel_hr

@@ -15,10 +15,10 @@
   races the compositor and about half the shots get a 2 px grey band stamped on
   the last rows of the image (clean 6/6 runs with it, 3/8 without).
 
-  The window is 560x2060: with the rolling strip, the monthly + yearly tables and
-  the CSV export the card renders 1977 CSS px tall and the page 2009 px, so
-  anything below ~2010 cuts the yearly table off. Re-measure (data-card-height on
-  <html>) whenever the card grows.
+  The window is 560x2115 (card height + 64): with the 13 tiles, rolling strip, the
+  monthly + yearly tables and the CSV export the card renders 2051 CSS px tall and
+  the page 2083 px, so anything below ~2085 cuts the yearly table off. Re-measure
+  (data-card-height on <html>) whenever the card grows.
 
   CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
   cd <repo root>
@@ -26,12 +26,12 @@
   HOME=/tmp/fut_home TMPDIR=/tmp "$CHROME" --headless=new --no-sandbox --disable-gpu \
     --disable-dev-shm-usage --disable-crash-reporter --crash-dumps-dir=/tmp/fut_crashes \
     --run-all-compositor-stages-before-draw --hide-scrollbars --force-device-scale-factor=2 \
-    --virtual-time-budget=3000 --window-size=560,2060 --user-data-dir=/tmp/fut_shot_light \
+    --virtual-time-budget=3000 --window-size=560,2115 --user-data-dir=/tmp/fut_shot_light \
     --screenshot=docs/images/card-light.png "file://$PWD/docs/preview/card-preview.html"
   HOME=/tmp/fut_home TMPDIR=/tmp "$CHROME" --headless=new --no-sandbox --disable-gpu \
     --disable-dev-shm-usage --disable-crash-reporter --crash-dumps-dir=/tmp/fut_crashes \
     --run-all-compositor-stages-before-draw --hide-scrollbars --force-device-scale-factor=2 \
-    --virtual-time-budget=3000 --window-size=560,2060 --user-data-dir=/tmp/fut_shot_dark \
+    --virtual-time-budget=3000 --window-size=560,2115 --user-data-dir=/tmp/fut_shot_dark \
     --screenshot=docs/images/card-dark.png "file://$PWD/docs/preview/card-preview.html?theme=dark"
 
   Check the result: every pixel row below the card must be page background

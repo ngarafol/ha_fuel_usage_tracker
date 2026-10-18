@@ -165,20 +165,27 @@ utility_meter:
 ```yaml
 service: fuelusagetracker.export_csv
 data:
-  vehicle: Passat      # or the config entry id
-  scope: fillups       # fillups (default) | months | years
-  filename: passat.csv # optional; a plain .csv name, no directories
+  vehicle: Passat            # or the config entry id
+  scope: fillups             # fillups (default) | months | years
+  format: standard           # standard (default) | excel_hr
+  filename: passat.csv       # optional; a plain .csv name, no directories
 ```
 
 The service writes UTF-8 (with BOM, so Excel reads Croatian station names) into
 your Home Assistant config directory — default
 `fuelusagetracker_passat_fillups.csv` — and returns `{"path": ..., "rows": ...}`:
 
+| `format` | Fields | Decimals | Line endings | Use it for |
+| --- | --- | --- | --- | --- |
+| `standard` | `,` | `1.470` | LF | scripts, pandas, git-friendly diffs |
+| `excel_hr` | `;` | `1,470` | CRLF | Excel with a Croatian/European locale |
+
 ```yaml
 - service: fuelusagetracker.export_csv
   data:
     vehicle: Passat
     scope: months
+    format: excel_hr
   response_variable: izvoz
 - service: notify.persistent_notification
   data:
@@ -188,6 +195,39 @@ your Home Assistant config directory — default
 A `filename` containing a path separator, a parent reference or a leading dot is
 rejected, so an export can never escape the config directory. The card also has
 an **Export CSV** button that calls the service for the selected vehicle.
+
+### Scheduled export
+
+Scheduling is Home Assistant's job, not the integration's: trigger the service
+from an automation and let any `notify` target deliver the file. Service data is
+templated, so the file name can carry the period:
+
+```yaml
+automation:
+  - alias: "Fuel: monthly CSV export"
+    triggers:
+      - trigger: time
+        at: "08:00:00"
+    conditions:
+      - condition: template
+        value_template: "{{ now().day == 1 }}"
+    actions:
+      - service: fuelusagetracker.export_csv
+        data:
+          vehicle: Passat
+          scope: months
+          format: excel_hr
+          filename: "passat_gorivo_{{ now().strftime('%Y-%m') }}.csv"
+        response_variable: izvoz
+      - service: notify.persistent_notification
+        data:
+          title: "Fuel CSV"
+          message: "{{ izvoz.rows }} rows written to {{ izvoz.path }}"
+```
+
+For notification platforms that support attachments, pass the returned
+`izvoz.path` in that platform's attachment field (the key differs per platform,
+so check your `notify` target's docs).
 
 ## The card
 
@@ -202,12 +242,13 @@ entity: sensor.fuelusagetracker_passat_total_cost   # optional
 ```
 
 Without configuration the card shows the first tracked vehicle and offers a
-picker for the rest. It shows the current statistics and the current month, a
-rolling last-12-months summary, monthly **and** yearly comparison tables (km,
-litres, cost, L/100 km and the change against the previous period), records
-fill-ups (date, litres, total price, optional odometer, full tank, station),
-updates the odometer, exports the fill-up log to CSV, and lists the 50 most
-recent fill-ups with delete (confirmation dialog).
+picker for the rest. It shows the current statistics, the current month and the
+current year (cost and consumption tiles), a rolling last-12-months summary,
+monthly **and** yearly comparison tables (km, litres, cost, L/100 km and the
+change against the previous period), records fill-ups (date, litres, total
+price, optional odometer, full tank, station), updates the odometer, exports the
+fill-up log to CSV, and lists the 50 most recent fill-ups with delete
+(confirmation dialog).
 
 ## What it looks like
 
