@@ -66,23 +66,23 @@
   },
   "entity": {
     "sensor": {
-      "odometer": {
-        "name": "Odometer"
+      "avg_consumption": {
+        "name": "Average consumption"
+      },
+      "avg_price_per_liter": {
+        "name": "Average price per liter"
+      },
+      "cost_per_km": {
+        "name": "Cost per km"
+      },
+      "fill_count": {
+        "name": "Fill-up count"
       },
       "km_since_last_fill": {
         "name": "Distance since last fill-up"
       },
-      "total_distance": {
-        "name": "Total distance"
-      },
-      "total_liters": {
-        "name": "Total liters"
-      },
-      "total_cost": {
-        "name": "Total cost"
-      },
-      "avg_price_per_liter": {
-        "name": "Average price per liter"
+      "last_consumption": {
+        "name": "Last consumption"
       },
       "last_fill": {
         "name": "Last fill-up"
@@ -96,17 +96,32 @@
       "last_price_per_liter": {
         "name": "Last price per liter"
       },
-      "last_consumption": {
-        "name": "Last consumption"
+      "month_avg_consumption": {
+        "name": "Average consumption this month"
       },
-      "avg_consumption": {
-        "name": "Average consumption"
+      "month_cost": {
+        "name": "Cost this month"
       },
-      "cost_per_km": {
-        "name": "Cost per km"
+      "month_distance": {
+        "name": "Distance this month"
       },
-      "fill_count": {
-        "name": "Fill-up count"
+      "month_fill_count": {
+        "name": "Fill-ups this month"
+      },
+      "month_liters": {
+        "name": "Litres this month"
+      },
+      "odometer": {
+        "name": "Odometer"
+      },
+      "total_cost": {
+        "name": "Total cost"
+      },
+      "total_distance": {
+        "name": "Total distance"
+      },
+      "total_liters": {
+        "name": "Total liters"
       }
     }
   }

@@ -19,6 +19,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
+    MONTH_HISTORY_MONTHS,
     SENSOR_AVG_CONSUMPTION,
     SENSOR_AVG_PRICE_PER_LITER,
     SENSOR_COST_PER_KM,
@@ -29,6 +30,11 @@ from .const import (
     SENSOR_LAST_FILL_COST,
     SENSOR_LAST_FILL_LITERS,
     SENSOR_LAST_PRICE_PER_LITER,
+    SENSOR_MONTH_AVG_CONSUMPTION,
+    SENSOR_MONTH_COST,
+    SENSOR_MONTH_DISTANCE,
+    SENSOR_MONTH_FILL_COUNT,
+    SENSOR_MONTH_LITERS,
     SENSOR_ODOMETER,
     SENSOR_TOTAL_COST,
     SENSOR_TOTAL_DISTANCE,
@@ -109,6 +115,27 @@ SENSOR_DESCRIPTIONS: Final[tuple[SensorEntityDescription, ...]] = (
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(key=SENSOR_FILL_COUNT),
+    # Current-month values. Deliberately no state_class: they reset every month,
+    # so long-term statistics would sum garbage — the `total_*` sensors own those.
+    SensorEntityDescription(
+        key=SENSOR_MONTH_DISTANCE,
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement="km",
+    ),
+    SensorEntityDescription(
+        key=SENSOR_MONTH_LITERS,
+        native_unit_of_measurement="L",
+    ),
+    SensorEntityDescription(
+        key=SENSOR_MONTH_COST,
+        device_class=SensorDeviceClass.MONETARY,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_MONTH_AVG_CONSUMPTION,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="L/100km",
+    ),
+    SensorEntityDescription(key=SENSOR_MONTH_FILL_COUNT),
 )
 
 #: Where each sensor reads its value, as a dotted path on `data.FuelUsage`.
@@ -127,6 +154,11 @@ _VALUE_PATHS: Final[dict[str, str]] = {
     SENSOR_AVG_CONSUMPTION: "avg_consumption",
     SENSOR_COST_PER_KM: "cost_per_km",
     SENSOR_FILL_COUNT: "fill_count",
+    SENSOR_MONTH_DISTANCE: "current_month.distance",
+    SENSOR_MONTH_LITERS: "current_month.liters",
+    SENSOR_MONTH_COST: "current_month.cost",
+    SENSOR_MONTH_AVG_CONSUMPTION: "current_month.avg_consumption",
+    SENSOR_MONTH_FILL_COUNT: "current_month.fill_count",
 }
 
 #: Units that embed the global `hass.config.currency`.
@@ -136,7 +168,20 @@ _CURRENCY_UNITS: Final[dict[str, str]] = {
     SENSOR_AVG_PRICE_PER_LITER: "{currency}/L",
     SENSOR_LAST_PRICE_PER_LITER: "{currency}/L",
     SENSOR_COST_PER_KM: "{currency}/km",
+    SENSOR_MONTH_COST: "{currency}",
 }
+
+#: Sensors whose value belongs to one calendar month; they carry a `month`
+#: attribute so the card can label them. `month_cost` also carries the history.
+_MONTH_KEYS: Final = frozenset(
+    (
+        SENSOR_MONTH_DISTANCE,
+        SENSOR_MONTH_LITERS,
+        SENSOR_MONTH_COST,
+        SENSOR_MONTH_AVG_CONSUMPTION,
+        SENSOR_MONTH_FILL_COUNT,
+    )
+)
 
 
 def _dotted_value(root: Any, path: str) -> Any:
@@ -178,11 +223,19 @@ class FuelUsageSensor(FuelUsageEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Identity attributes, plus the fill-up history on the `last_fill` sensor."""
+        """Identity attributes, plus the history carried by `last_fill`/`month_cost`."""
         attributes = super().extra_state_attributes
-        if self.entity_description.key != SENSOR_LAST_FILL:
-            return attributes
+        key = self.entity_description.key
         usage: FuelUsage = self.coordinator.data
+        if key in _MONTH_KEYS:
+            attributes["month"] = usage.current_month.month_key
+            if key == SENSOR_MONTH_COST:
+                attributes["months"] = [
+                    month.as_dict() for month in usage.months()[:MONTH_HISTORY_MONTHS]
+                ]
+            return attributes
+        if key != SENSOR_LAST_FILL:
+            return attributes
         last = usage.last_fill
         attributes.update(
             fillup_id=last.id if last else None,

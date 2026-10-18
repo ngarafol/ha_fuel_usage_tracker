@@ -4,6 +4,35 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.2.0] - 2026-10-18
+
+### Added
+
+* Monthly statistics per vehicle: kilometres (from the tank-to-tank legs closed
+  in that month), litres and cost purchased, average consumption, average price
+  per litre, cost per km and the fill-up count. Five `*_this_month` sensors plus
+  a 24-month `months` history attribute on the cost sensor.
+* The card shows the current month and a monthly comparison table with the
+  change against the previous month (km, cost, L/100 km).
+* README section on monthly statistics, including the native `utility_meter`
+  recipe for Home Assistant's own monthly statistics entities, and a monthly
+  comparison chart in the previews.
+
+### Changed
+
+* Sensors per vehicle: 14 → 19.
+* The card labels the current-month tiles with the same localized month format
+  as the comparison table (previously the raw `2026-10` key).
+* The preview diagrams are now drawn from the integration's own aggregation code
+  (no second implementation of the maths) and use Croatian number formatting.
+
+### Fixed
+
+* Missing `entity.sensor.month_*.name` translations produced meaningless entity
+  ids for the new sensors (`…_2`, `…_monetary_balance`, `…_distance`). English
+  and Croatian names added; a test now fails whenever a sensor key has no
+  translated name.
+
 ## [0.1.1] - 2026-10-18
 
 ### Added
@@ -40,5 +69,6 @@ All notable changes to this project are documented here. The format follows
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.2.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.2.0
 [0.1.1]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.1.1
 [0.1.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.1.0

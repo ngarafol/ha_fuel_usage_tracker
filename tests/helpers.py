@@ -19,7 +19,7 @@ DEFAULT_VEHICLE: dict[str, Any] = {
     const.CONF_ODOMETER: BASE_ODOMETER,
 }
 
-#: The 14 sensor keys of the frozen key table, taken from const.py itself.
+#: The 19 sensor keys of the frozen key table, taken from const.py itself.
 SENSOR_KEYS: frozenset[str] = frozenset(
     value for name, value in vars(const).items() if name.startswith("SENSOR_")
 )

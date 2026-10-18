@@ -61,3 +61,14 @@ SENSOR_LAST_CONSUMPTION: Final = "last_consumption"
 SENSOR_AVG_CONSUMPTION: Final = "avg_consumption"
 SENSOR_COST_PER_KM: Final = "cost_per_km"
 SENSOR_FILL_COUNT: Final = "fill_count"
+
+# Current-month sensors. Together with the ``months`` history attribute on
+# SENSOR_MONTH_COST they give the owner month-by-month comparability.
+SENSOR_MONTH_DISTANCE: Final = "month_distance"
+SENSOR_MONTH_LITERS: Final = "month_liters"
+SENSOR_MONTH_COST: Final = "month_cost"
+SENSOR_MONTH_AVG_CONSUMPTION: Final = "month_avg_consumption"
+SENSOR_MONTH_FILL_COUNT: Final = "month_fill_count"
+
+#: How many months of history the ``months`` attribute keeps (HA limits attribute size).
+MONTH_HISTORY_MONTHS: Final = 24

@@ -66,23 +66,23 @@
   },
   "entity": {
     "sensor": {
-      "odometer": {
-        "name": "Kilometraža"
+      "avg_consumption": {
+        "name": "Prosječna potrošnja"
+      },
+      "avg_price_per_liter": {
+        "name": "Prosječna cijena po litri"
+      },
+      "cost_per_km": {
+        "name": "Trošak po kilometru"
+      },
+      "fill_count": {
+        "name": "Broj punjenja"
       },
       "km_since_last_fill": {
         "name": "Prijeđeno od zadnjeg punjenja"
       },
-      "total_distance": {
-        "name": "Ukupna udaljenost"
-      },
-      "total_liters": {
-        "name": "Ukupno litara"
-      },
-      "total_cost": {
-        "name": "Ukupni trošak"
-      },
-      "avg_price_per_liter": {
-        "name": "Prosječna cijena po litri"
+      "last_consumption": {
+        "name": "Zadnja potrošnja"
       },
       "last_fill": {
         "name": "Zadnje punjenje"
@@ -96,17 +96,32 @@
       "last_price_per_liter": {
         "name": "Cijena po litri zadnjeg punjenja"
       },
-      "last_consumption": {
-        "name": "Zadnja potrošnja"
+      "month_avg_consumption": {
+        "name": "Prosječna potrošnja ovaj mjesec"
       },
-      "avg_consumption": {
-        "name": "Prosječna potrošnja"
+      "month_cost": {
+        "name": "Trošak ovaj mjesec"
       },
-      "cost_per_km": {
-        "name": "Trošak po kilometru"
+      "month_distance": {
+        "name": "Kilometraža ovaj mjesec"
       },
-      "fill_count": {
-        "name": "Broj punjenja"
+      "month_fill_count": {
+        "name": "Punjenja ovaj mjesec"
+      },
+      "month_liters": {
+        "name": "Litara ovaj mjesec"
+      },
+      "odometer": {
+        "name": "Kilometraža"
+      },
+      "total_cost": {
+        "name": "Ukupni trošak"
+      },
+      "total_distance": {
+        "name": "Ukupna udaljenost"
+      },
+      "total_liters": {
+        "name": "Ukupno litara"
       }
     }
   }

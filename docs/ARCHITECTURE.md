@@ -95,6 +95,42 @@ Sensor key table (keys are defined in `const.py`, names come from
 | `avg_consumption` | – | measurement | `L/100km` | `usage.avg_consumption` |
 | `cost_per_km` | – | measurement | `<currency>/km` | `usage.cost_per_km` |
 | `fill_count` | – | – | – | `usage.fill_count` |
+| `month_distance` | distance | – | km | `usage.current_month.distance` |
+| `month_liters` | – | – | L | `usage.current_month.liters` |
+| `month_cost` | monetary | – | currency | `usage.current_month.cost` |
+| `month_avg_consumption` | – | measurement | `L/100km` | `usage.current_month.avg_consumption` |
+| `month_fill_count` | – | – | – | `usage.current_month.fill_count` |
+
+(`<currency>` is `hass.config.currency`.) That is 19 sensors per vehicle.
+
+## Monthly statistics
+
+`data.FuelUsage.months()` returns a `MonthlyUsage` per month that has at least
+one fill-up, newest first. `FuelUsage.current_month` returns this calendar month
+(zeroed when it has no fill-up yet).
+
+* Bucketing is by the fill-up date converted with `dt_util.as_local()`, i.e. in
+  `hass.config.time_zone`. A fill-up at 23:30 UTC on 31 January belongs to
+  February in `Europe/Zagreb`. Tests must set the default time zone explicitly.
+* `liters`, `cost` and `fill_count` are what was **purchased** that month.
+* `distance`, `leg_liters` and therefore `avg_consumption` come from the
+  tank-to-tank legs **closed** in that month (the leg's total litres over the
+  leg's kilometres), plus `avg_price_per_liter` and `cost_per_km` on that basis.
+  A month that closes no leg has `distance = None` and `avg_consumption = None`.
+* Months without any fill-up are omitted rather than reported as zero.
+
+The `month_*` sensors deliberately carry **no state class**: their value resets
+every month, so feeding them into long-term statistics would corrupt the sum.
+The `total_*` sensors own the statistics. A README recipe shows the native
+`utility_meter` alternative (`cycle: monthly`) for users who want HA-native
+monthly statistics entities.
+
+The `month_cost` sensor additionally exposes, for the card:
+
+* `month`: the `YYYY-MM` key the values refer to (also on the other `month_*`
+  sensors), so the card can label "this month" without guessing;
+* `months`: the newest-first list of `MonthlyUsage.as_dict()` dicts, **capped at
+  `MONTH_HISTORY_MONTHS` (24)** because HA limits attribute size.
 
 `<currency>` is `hass.config.currency`.
 
@@ -131,6 +167,12 @@ picker. It must:
   list); a key the card never renders is a bug — `avg_price_per_liter` was exactly
   that until 0.1.1,
 * list recent fill-ups from the `fillups` attribute of the `last_fill` entity,
+* show the current month (`month_cost`, `month_avg_consumption` tiles) and a
+  monthly comparison table read from the `months` attribute of the `month_cost`
+  entity: month, km, litres, cost, L/100km and fill-up count, plus the change
+  against the previous month (consumption, cost and km). The current month is
+  marked, and a month whose `avg_consumption` is `null` shows `-` instead of a
+  fabricated number,
 * add a fill-up through `fuelusagetracker.add_fillup`,
 * update the odometer through `fuelusagetracker.update_vehicle`,
 * delete a fill-up through `fuelusagetracker.delete_fillup`, with a confirmation

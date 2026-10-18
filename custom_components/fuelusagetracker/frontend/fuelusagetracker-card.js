@@ -22,6 +22,9 @@ const STATS = [
   { key: "total_distance", label: "Total distance", digits: 0 },
   { key: "km_since_last_fill", label: "Km since last fill", digits: 0 },
   { key: "fill_count", label: "Fill-ups", digits: 0 },
+  // `month: true` also shows the entity's `month` attribute (YYYY-MM) in the tile.
+  { key: "month_cost", label: "This month", digits: 2, money: true, month: true },
+  { key: "month_avg_consumption", label: "This month consumption", digits: 2, month: true },
 ];
 
 const STYLES = `
@@ -37,6 +40,7 @@ const STYLES = `
   .stat .label { font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--secondary-text-color); }
   .stat .value { margin-top: 2px; font-size: 1.05rem; color: var(--primary-text-color); }
   .stat .unit { margin-left: 3px; font-size: .72rem; color: var(--secondary-text-color); }
+  .stat .month { margin-left: 4px; font-size: .7rem; color: var(--secondary-text-color); }
   .section { border-top: 1px solid var(--divider-color); }
   .section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px 6px; font-weight: 500; color: var(--primary-text-color); }
   .rows, form.grid, .actions, .fills { padding: 0 16px 12px; }
@@ -63,6 +67,17 @@ const STYLES = `
   .empty { color: var(--secondary-text-color); }
   .error { color: var(--error-color, #db4437); }
   .error[hidden] { display: none; }
+  .months { padding: 0 16px 12px; }
+  .months-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .8rem; }
+  .months-table th, .months-table td { padding: 3px 4px; text-align: right; vertical-align: top; overflow-wrap: anywhere; }
+  .months-table th:first-child, .months-table td:first-child { width: 26%; text-align: left; }
+  .months-table thead th { font-size: .66rem; font-weight: 500; letter-spacing: .03em; text-transform: uppercase; color: var(--secondary-text-color); }
+  .months-table tbody tr { border-top: 1px solid var(--divider-color); }
+  .months-table tbody tr:first-child { border-top: none; }
+  .months-table .delta { font-size: .72rem; color: var(--secondary-text-color); }
+  .months-table tr.current td { color: var(--primary-text-color); }
+  .months-table tr.current td:first-child { font-weight: 600; }
+  .months-table .now { margin-left: 4px; padding: 0 4px; font-size: .64rem; font-weight: 400; letter-spacing: .03em; text-transform: uppercase; border-radius: 6px; background: var(--secondary-background-color); color: var(--secondary-text-color); }
 `;
 
 /** Create an element; `text`, `class` and `on*` keys get special treatment. */
@@ -94,6 +109,7 @@ class FuelUsageTrackerCard extends HTMLElement {
     this._built = false;
     this._selected = null;
     this._showAllFills = false;
+    this._showAllMonths = false;
     this._busy = false;
     this._error = null;
   }
@@ -310,11 +326,12 @@ class FuelUsageTrackerCard extends HTMLElement {
     for (const stat of STATS) {
       const amount = el("span");
       const unit = el("span", { class: "unit" });
-      const value = el("div", { class: "value" }, [amount, unit]);
+      const month = el("span", { class: "month" });
+      const value = el("div", { class: "value" }, [amount, unit, month]);
       stats.append(
         el("div", { class: "stat" }, [el("div", { class: "label", text: stat.label }), value])
       );
-      statRefs[stat.key] = { amount, unit, stat };
+      statRefs[stat.key] = { amount, unit, month, stat };
     }
     card.append(stats);
 
@@ -400,6 +417,24 @@ class FuelUsageTrackerCard extends HTMLElement {
       ])
     );
 
+    // Monthly comparison (from the `months` attribute of the month_cost entity).
+    const monthNodes = el("div", { class: "months" });
+    const showAllMonthsButton = el("button", {
+      class: "link",
+      type: "button",
+      text: "Show all",
+      onclick: () => this._toggleMonths(),
+    });
+    card.append(
+      el("div", { class: "section" }, [
+        el("div", { class: "section-head" }, [
+          el("span", { text: "Monthly comparison" }),
+          showAllMonthsButton,
+        ]),
+        monthNodes,
+      ])
+    );
+
     this._refs = {
       subtitle,
       error,
@@ -411,6 +446,8 @@ class FuelUsageTrackerCard extends HTMLElement {
       odoButton,
       fillNodes,
       showAllButton,
+      monthNodes,
+      showAllMonthsButton,
     };
     this._update(vehicle);
   }
@@ -427,6 +464,8 @@ class FuelUsageTrackerCard extends HTMLElement {
       const state = this._entity(vehicle, key);
       ref.amount.textContent = this._value(state, ref.stat.digits, ref.stat.money ? currency : null);
       ref.unit.textContent = ref.stat.money ? "" : this._unit(state);
+      const month = (state && state.attributes && state.attributes.month) || "";
+      ref.month.textContent = ref.stat.month && month ? this._monthLabel(month) : "";
     }
 
     const last = this._entity(vehicle, "last_fill");
@@ -447,6 +486,7 @@ class FuelUsageTrackerCard extends HTMLElement {
     setLast("notes", attrs.notes);
 
     this._renderFills(vehicle, currency);
+    this._renderMonths(vehicle, currency);
   }
 
   _renderFills(vehicle, currency) {
@@ -496,6 +536,96 @@ class FuelUsageTrackerCard extends HTMLElement {
     }
   }
 
+  /** Signed percentage change of `current` against the older month's value. */
+  _delta(current, previous) {
+    if (current === null || current === undefined) return "-";
+    if (previous === null || previous === undefined) return "-";
+    const value = Number(current);
+    const base = Number(previous);
+    if (!Number.isFinite(value) || !Number.isFinite(base) || base === 0) return "-";
+    const pct = ((value - base) / base) * 100;
+    const sign = pct > 0 ? "+" : pct < 0 ? "-" : "";
+    return `${sign}${this._number(Math.abs(pct), 1)}%`;
+  }
+
+  /** `2026-03` -> localized short month + year, e.g. "Mär 2026". */
+  _monthLabel(key) {
+    const match = /^(\d{4})-(\d{2})$/.exec(String(key || ""));
+    if (!match) return key ? String(key) : "-";
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, 1);
+    try {
+      return new Intl.DateTimeFormat(this._locale(), {
+        month: "short",
+        year: "numeric",
+      }).format(date);
+    } catch (err) {
+      return String(key);
+    }
+  }
+
+  _renderMonths(vehicle, currency) {
+    const container = this._refs.monthNodes;
+    container.innerHTML = "";
+    const state = this._entity(vehicle, "month_cost");
+    const attrs = (state && state.attributes) || {};
+    const months = Array.isArray(attrs.months) ? attrs.months : [];
+    const currentKey = attrs.month || null;
+    const limit = this._showAllMonths ? months.length : 12;
+    this._refs.showAllMonthsButton.hidden = months.length <= 12;
+    this._refs.showAllMonthsButton.textContent = this._showAllMonths
+      ? "Show less"
+      : `Show all (${months.length})`;
+
+    if (!months.length) {
+      container.append(el("div", { class: "empty", text: "No monthly data yet." }));
+      return;
+    }
+
+    const num = (value, digits, suffix = "") =>
+      value === null || value === undefined || !Number.isFinite(Number(value))
+        ? "-"
+        : `${this._number(Number(value), digits)}${suffix}`;
+    const money = (value) =>
+      value === null || value === undefined || !Number.isFinite(Number(value))
+        ? "-"
+        : this._money(Number(value), currency);
+    const cell = (text, delta) =>
+      el("td", {}, [
+        el("div", { text }),
+        delta === null ? null : el("div", { class: "delta", text: delta }),
+      ]);
+
+    const head = el("tr", {}, [
+      el("th", { scope: "col", text: "Month" }),
+      el("th", { scope: "col", text: "km" }),
+      el("th", { scope: "col", text: "L" }),
+      el("th", { scope: "col", text: "Cost" }),
+      el("th", { scope: "col", text: "L/100km" }),
+      el("th", { scope: "col", text: "Fills" }),
+    ]);
+    const body = el("tbody");
+    for (const [index, month] of months.slice(0, limit).entries()) {
+      const older = months[index + 1];
+      const isCurrent = currentKey !== null && month.month === currentKey;
+      body.append(
+        el("tr", { class: isCurrent ? "current" : null }, [
+          el("td", { class: "month" }, [
+            el("span", { class: "month-label", text: this._monthLabel(month.month) }),
+            isCurrent ? el("span", { class: "now", text: "current" }) : null,
+          ]),
+          cell(num(month.distance, 0, " km"), this._delta(month.distance, older && older.distance)),
+          cell(num(month.liters, 1), null),
+          cell(money(month.cost), this._delta(month.cost, older && older.cost)),
+          cell(num(month.avg_consumption, 2), this._delta(month.avg_consumption, older && older.avg_consumption)),
+          cell(num(month.fill_count, 0), null),
+        ])
+      );
+    }
+    container.append(
+      el("table", { class: "months-table" }, [el("thead", {}, [head]), body])
+    );
+  }
+
   _renderError() {
     const error = this._refs && this._refs.error;
     if (!error) return;
@@ -518,6 +648,12 @@ class FuelUsageTrackerCard extends HTMLElement {
     this._showAllFills = !this._showAllFills;
     const vehicle = this._vehicle();
     if (vehicle) this._renderFills(vehicle, this._currency(vehicle));
+  }
+
+  _toggleMonths() {
+    this._showAllMonths = !this._showAllMonths;
+    const vehicle = this._vehicle();
+    if (vehicle) this._renderMonths(vehicle, this._currency(vehicle));
   }
 
   // --- actions ------------------------------------------------------------

@@ -84,6 +84,54 @@ class FillUp:
 
 
 @dataclass(slots=True)
+class MonthlyUsage:
+    """One calendar month of a vehicle's usage, in local time."""
+
+    year: int
+    month: int
+    liters: float = 0.0
+    cost: float = 0.0
+    fill_count: int = 0
+    #: Litres and kilometres of the tank-to-tank legs closed in this month.
+    leg_liters: float = 0.0
+    distance: float | None = None
+    last_date: datetime | None = None
+
+    @property
+    def month_key(self) -> str:
+        """Sortable ``YYYY-MM`` key."""
+        return f"{self.year:04d}-{self.month:02d}"
+
+    @property
+    def avg_consumption(self) -> float | None:
+        """Litres per 100 km over the legs closed in this month."""
+        if not self.distance:
+            return None
+        return round(self.leg_liters / self.distance * 100, 2)
+
+    @property
+    def avg_price_per_liter(self) -> float | None:
+        return round(self.cost / self.liters, 3) if self.liters else None
+
+    @property
+    def cost_per_km(self) -> float | None:
+        return round(self.cost / self.distance, 4) if self.distance else None
+
+    def as_dict(self) -> dict[str, Any]:
+        """Serialise for an entity attribute (the card compares months with this)."""
+        return {
+            "month": self.month_key,
+            "distance": round(self.distance, 1) if self.distance is not None else None,
+            "liters": round(self.liters, 3),
+            "cost": round(self.cost, 2),
+            "avg_consumption": self.avg_consumption,
+            "avg_price_per_liter": self.avg_price_per_liter,
+            "cost_per_km": self.cost_per_km,
+            "fill_count": self.fill_count,
+        }
+
+
+@dataclass(slots=True)
 class FuelUsage:
     """Computed statistics for one vehicle."""
 
@@ -151,15 +199,15 @@ class FuelUsage:
             return None
         return round(odometer - last_with_odometer.odometer, 1)
 
-    def _legs(self) -> list[tuple[float, float]]:
-        """Full-to-full legs as (liters, distance) pairs.
+    def _leg_rows(self) -> list[tuple[int, float, float]]:
+        """Tank-to-tank legs as (closing fill-up index, liters, distance) rows.
 
         Tank-to-tank method: a leg ends at a full tank fill-up with an odometer
         reading and contains every litre added since the previous full tank,
         including partial fill-ups in between. A full tank without an odometer
         reading breaks the chain, because the distance of that leg is unknown.
         """
-        legs: list[tuple[float, float]] = []
+        rows: list[tuple[int, float, float]] = []
         previous: tuple[int, float] | None = None
         for index, fill in enumerate(self.fillups):
             if not fill.full:
@@ -172,9 +220,13 @@ class FuelUsage:
                 distance = fill.odometer - prev_odometer
                 if distance > 0:
                     liters = sum(item.liters for item in self.fillups[prev_index + 1 : index + 1])
-                    legs.append((liters, distance))
+                    rows.append((index, liters, distance))
             previous = (index, fill.odometer)
-        return legs
+        return rows
+
+    def _legs(self) -> list[tuple[float, float]]:
+        """Full-to-full legs as (liters, distance) pairs."""
+        return [(liters, distance) for _, liters, distance in self._leg_rows()]
 
     @property
     def avg_consumption(self) -> float | None:
@@ -201,6 +253,44 @@ class FuelUsage:
         if not distance:
             return None
         return round(self.total_cost / distance, 4)
+
+    def months(self) -> list[MonthlyUsage]:
+        """Monthly aggregation of every month that has at least one fill-up.
+
+        Fill-ups are bucketed by their date in Home Assistant's local time, so a
+        late-evening fill-up belongs to the month the driver experienced. Distance
+        and consumption come from the tank-to-tank legs closed in that month;
+        litres, cost and the fill-up count are what was actually purchased.
+        Returns the newest month first.
+        """
+        buckets: dict[tuple[int, int], MonthlyUsage] = {}
+        legs = {index: (liters, distance) for index, liters, distance in self._leg_rows()}
+        for index, fill in enumerate(self.fillups):
+            local = dt_util.as_local(fill.date)
+            key = (local.year, local.month)
+            bucket = buckets.setdefault(key, MonthlyUsage(year=local.year, month=local.month))
+            bucket.liters += fill.liters
+            bucket.cost += fill.price
+            bucket.fill_count += 1
+            if bucket.last_date is None or fill.date > bucket.last_date:
+                bucket.last_date = fill.date
+            if (leg := legs.get(index)) is not None:
+                bucket.leg_liters += leg[0]
+                bucket.distance = (bucket.distance or 0.0) + leg[1]
+        return sorted(buckets.values(), key=lambda item: (item.year, item.month), reverse=True)
+
+    @property
+    def current_month(self) -> MonthlyUsage:
+        """This calendar month in local time; zeroed when it has no fill-up yet."""
+        now = dt_util.now()
+        return next(
+            (
+                month
+                for month in self.months()
+                if (month.year, month.month) == (now.year, now.month)
+            ),
+            MonthlyUsage(year=now.year, month=now.month),
+        )
 
 
 class FuelUsageStore:
