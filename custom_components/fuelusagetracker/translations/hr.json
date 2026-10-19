@@ -16,20 +16,10 @@
           "engine": "Slobodan tekst, na primjer \"1.6 TDI\". Neobavezno.",
           "odometer": "Očitanje kilometraže na početku praćenja, u km. Neobavezno."
         }
-      }
-    },
-    "error": {
-      "required": "Ovo polje je obavezno."
-    },
-    "abort": {
-      "already_configured": "Vozilo s tim nazivom već postoji."
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Postavke vozila",
-        "description": "Promijenite naziv vozila, vrstu goriva, motor ili početnu kilometražu.",
+      },
+      "reconfigure": {
+        "title": "Ponovno konfiguriraj vozilo",
+        "description": "Ažurirajte naziv vozila, vrstu goriva, motor ili početnu kilometražu.",
         "data": {
           "name": "Naziv vozila",
           "fuel_type": "Vrsta goriva",
@@ -48,7 +38,8 @@
       "name_exists": "Vozilo s tim nazivom već postoji."
     },
     "abort": {
-      "already_configured": "Vozilo s tim nazivom već postoji."
+      "already_configured": "Vozilo s tim nazivom već postoji.",
+      "reconfigure_successful": "Vozilo je ažurirano."
     }
   },
   "selector": {

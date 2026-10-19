@@ -32,7 +32,12 @@ Config/options keys: `name` (also the entry title), `fuel_type`
 `odometer` (baseline odometer in km, float).
 
 `vehicle_settings(entry)` in `data.py` merges `entry.data` with `entry.options`
-(options win) — always use it instead of reading `entry.data` directly.
+(options win) — always use it instead of reading `entry.data` directly. Entry
+data is written by the config flow (`async_step_user`) and by the native
+reconfigure flow (`async_step_reconfigure`), which also strips the vehicle keys
+from `entry.options` so values an older install saved there cannot shadow the
+new data. There is deliberately **no options flow**: it showed the same fields as
+the wizard but wrote to a different dict.
 
 ## Fill-up model
 

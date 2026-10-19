@@ -40,7 +40,11 @@ Requires Home Assistant 2026.2 or newer (tested with 2026.2.3, Python 3.13).
 | Odometer | Optional baseline odometer in km; makes "km since last fill-up" meaningful before the first fill-up. |
 
 Add the integration again for every additional vehicle. Vehicle settings are
-editable afterwards through the integration's *Configure* button.
+editable afterwards — open the integration entry's ⋮ menu and pick
+**Reconfigure**, which re-runs this same wizard prefilled with the current
+values. Saving updates the entry data and the vehicle name (the device name and
+the `vehicle_name` attribute follow it); existing entity ids keep their original
+slugs, because Home Assistant generates them only once.
 
 ## Recording a fill-up
 

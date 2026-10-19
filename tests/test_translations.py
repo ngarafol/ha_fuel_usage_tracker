@@ -11,6 +11,9 @@ COMPONENT_DIR = (
     Path(__file__).resolve().parents[1] / "custom_components" / "fuelusagetracker"
 )
 
+#: Everything that must stay in translation parity.
+TRANSLATIONS = ("strings.json", "translations/en.json", "translations/hr.json")
+
 
 def _key_tree(node, prefix: str = "") -> set[str]:
     """Every key path of a JSON document, values dropped."""
@@ -45,3 +48,17 @@ def test_every_sensor_key_has_a_translated_name():
 
     for key in SENSOR_KEYS:
         assert names.get(key, {}).get("name"), f"entity.sensor.{key}.name is missing"
+
+
+def test_reconfigure_translations_exist_in_every_translation():
+    for name in TRANSLATIONS:
+        config = _load(name)["config"]
+        assert config["step"]["reconfigure"]["title"], name
+        assert config["abort"]["reconfigure_successful"], name
+        assert config["error"]["name_exists"], name
+
+
+def test_the_options_flow_translation_block_is_gone():
+    """The reconfigure wizard replaced the options flow, block and all."""
+    for name in TRANSLATIONS:
+        assert "options" not in _load(name), name

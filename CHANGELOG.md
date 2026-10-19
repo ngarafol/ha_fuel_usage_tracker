@@ -4,6 +4,32 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.6.0] - 2026-10-19
+
+### Added
+
+* Native **Reconfigure** wizard: the integration entry's ⋮ menu offers
+  *Reconfigure*, which re-runs the add-vehicle wizard prefilled with the current
+  name, fuel type, engine and baseline odometer. Saving updates the entry data
+  and the vehicle name (the device name and the `vehicle_name` attribute follow
+  it; existing entity ids keep their original slugs, because Home Assistant
+  generates them only once), strips the vehicle keys from `entry.options`, and
+  reloads the entry — cleared optional fields are stored as absent, not as empty
+  strings.
+
+### Removed
+
+* The options flow (*Configure*). It showed the same four fields as the wizard
+  but wrote into `entry.options`, which `vehicle_settings()` merges after
+  `entry.data` — so it silently shadowed the setup data. `Reconfigure` replaces
+  it and, on the first save, migrates values an existing install had saved there.
+
+### Tests
+
+* 89 (was 81): the reconfigure flow, including the options-shadowing regression
+  guard, blank/duplicate names, cleared optional fields, and the fact that the
+  options flow is gone (with its translation block).
+
 ## [0.5.1] - 2026-10-19
 
 Second complexity audit applied (ponytail-audit) — no behaviour, entity id,
@@ -166,6 +192,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.6.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.6.0
 [0.5.1]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.5.1
 [0.5.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.5.0
 [0.4.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.4.0

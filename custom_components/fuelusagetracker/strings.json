@@ -16,20 +16,10 @@
           "engine": "Free text, for example \"1.6 TDI\". Optional.",
           "odometer": "Odometer reading when tracking starts, in km. Optional."
         }
-      }
-    },
-    "error": {
-      "required": "This field is required."
-    },
-    "abort": {
-      "already_configured": "A vehicle with this name already exists."
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Vehicle settings",
-        "description": "Change the vehicle name, fuel type, engine or baseline odometer.",
+      },
+      "reconfigure": {
+        "title": "Reconfigure vehicle",
+        "description": "Update the vehicle name, fuel type, engine or baseline odometer.",
         "data": {
           "name": "Vehicle name",
           "fuel_type": "Fuel type",
@@ -48,7 +38,8 @@
       "name_exists": "A vehicle with this name already exists."
     },
     "abort": {
-      "already_configured": "A vehicle with this name already exists."
+      "already_configured": "A vehicle with this name already exists.",
+      "reconfigure_successful": "Vehicle updated."
     }
   },
   "selector": {
