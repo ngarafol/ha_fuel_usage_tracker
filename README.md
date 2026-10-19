@@ -92,21 +92,16 @@ For a vehicle named `Passat` (device `fuelusagetracker Passat`):
 | `sensor.fuelusagetracker_passat_average_consumption` | L/100 km, full-to-full average |
 | `sensor.fuelusagetracker_passat_cost_per_km` | Fuel cost per km |
 | `sensor.fuelusagetracker_passat_fill_up_count` | Number of recorded fill-ups |
-| `sensor.fuelusagetracker_passat_distance_this_month` | km driven this month (tank-to-tank legs closed) |
-| `sensor.fuelusagetracker_passat_litres_this_month` | Litres bought this month |
-| `sensor.fuelusagetracker_passat_cost_this_month` | Fuel cost this month |
-| `sensor.fuelusagetracker_passat_average_consumption_this_month` | L/100 km this month |
-| `sensor.fuelusagetracker_passat_fill_ups_this_month` | Fill-ups this month |
-| `sensor.fuelusagetracker_passat_distance_last_12_months` | km over the trailing 12 months |
-| `sensor.fuelusagetracker_passat_litres_last_12_months` | Litres bought over the trailing 12 months |
-| `sensor.fuelusagetracker_passat_cost_last_12_months` | Fuel cost over the trailing 12 months |
-| `sensor.fuelusagetracker_passat_average_consumption_last_12_months` | L/100 km over the trailing 12 months |
-| `sensor.fuelusagetracker_passat_distance_this_year` | km this calendar year |
-| `sensor.fuelusagetracker_passat_litres_this_year` | Litres bought this calendar year |
-| `sensor.fuelusagetracker_passat_cost_this_year` | Fuel cost this calendar year |
-| `sensor.fuelusagetracker_passat_average_consumption_this_year` | L/100 km this calendar year |
+| `sensor.fuelusagetracker_passat_{distance,litres,cost,average_consumption,fill_ups}_this_month` | this month: km, litres bought, fuel cost, L/100 km, fill-ups |
+| `sensor.fuelusagetracker_passat_{distance,litres,cost,average_consumption}_last_12_months` | trailing 12 months (never resets on 1 January; the `window` attribute carries the exact range) |
+| `sensor.fuelusagetracker_passat_{distance,litres,cost,average_consumption}_this_year` | this calendar year (`cost_this_year` also carries the 10-year `years` history) |
 
-27 sensors per vehicle. These ids are what Home Assistant generates for a
+27 sensors per vehicle — the braces are a shorthand for the five/four generated
+ids, e.g. `sensor.fuelusagetracker_passat_distance_this_month`. The
+device/state class and unit of every key are in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#entities).
+
+These ids are what Home Assistant generates for a
 vehicle named `Passat` in an English UI; the prefix `sensor.fuelusagetracker_`
 is always the same. Entity ids are only created once, so renaming the vehicle
 afterwards keeps the existing ids (and the card never depends on them — it reads

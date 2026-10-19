@@ -16,7 +16,6 @@ from custom_components.fuelusagetracker.data import FuelUsage, PeriodUsage
 from tests.helpers import (
     BASE_ODOMETER,
     PERIOD_KEYS,
-    SENSOR_KEYS,
     add_fillup,
     fill,
     sensor_state,
@@ -190,20 +189,6 @@ async def test_month_cost_history_shape_order_and_cap(hass, utc_timezone):
     assert len(history) == const.MONTH_HISTORY_MONTHS == 24
     assert [item["period"] for item in history] == expected[: const.MONTH_HISTORY_MONTHS]
     assert set(history[0]) == PERIOD_KEYS
-
-
-async def test_all_twenty_seven_sensors_are_registered_with_the_prefix(hass):
-    entry = await setup_vehicle(hass)
-
-    entities = er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)
-
-    assert len(SENSOR_KEYS) == 27
-    assert len(entities) == 27
-    for entity in entities:
-        assert entity.entity_id.startswith(f"sensor.{const.ENTITY_PREFIX}_")
-    assert {hass.states.get(entity.entity_id).attributes["key"] for entity in entities} == set(
-        SENSOR_KEYS
-    )
 
 
 async def test_month_sensors_report_the_frozen_current_month(hass, freezer, utc_timezone):

@@ -12,18 +12,17 @@ this document. Change it here first, then change code.
 | --- | --- | --- |
 | `custom_components/fuelusagetracker/manifest.json` | lead | integration manifest, holds the version |
 | `custom_components/fuelusagetracker/const.py` | lead | domain, config/service field names, sensor keys |
-| `custom_components/fuelusagetracker/data.py` | lead | `FillUp`, `FuelUsage` (consumption maths), storage, coordinator |
-| `custom_components/fuelusagetracker/entity.py` | lead | base entity (device info, identity attributes) |
+| `custom_components/fuelusagetracker/data.py` | lead | `FillUp`, `PeriodUsage`, `FuelUsage` (consumption maths), storage, coordinator |
+| `custom_components/fuelusagetracker/sensor.py` | sensor dev | entity base (`FuelUsageEntity`) + the 27 sensor descriptions |
 | `custom_components/fuelusagetracker/__init__.py` | lead | setup, services, frontend wiring |
 | `custom_components/fuelusagetracker/config_flow.py` | config flow dev | add vehicle (user step) + edit vehicle (options step) |
-| `custom_components/fuelusagetracker/sensor.py` | sensor dev | one sensor platform, entities from the key table |
 | `custom_components/fuelusagetracker/frontend.py` | card dev | serve + auto-register the card |
 | `custom_components/fuelusagetracker/frontend/fuelusagetracker-card.js` | card dev | the Lovelace card |
 | `custom_components/fuelusagetracker/{strings.json,translations/,services.yaml}` | config flow dev | translations & service UI |
 | `custom_components/fuelusagetracker/csv_export.py` | lead | CSV building + safe export path |
 | `tests/`, `pytest.ini`, `requirements_test.txt` | test dev | automated checks |
 | `docs/preview/card-preview.html`, `docs/images/card-*.png` | preview dev | card harness + light/dark screenshots |
-| `docs/preview/make_diagrams.py`, `docs/images/{monthly-chart,architecture}.png` | lead | chart & data-flow previews |
+| `docs/preview/make_diagrams.py`, `docs/images/{monthly-chart,yearly-chart,architecture}.png` | lead | chart & data-flow previews (the generated `*.html` pages are gitignored) |
 | `README.md`, `CHANGELOG.md`, `hacs.json`, `docs/ARCHITECTURE.md` | lead | docs & versioning |
 
 ## Vehicle model (one config entry = one vehicle = one device)
@@ -79,8 +78,10 @@ is not integration code: Home Assistant automations trigger the service and any
 
 ## Entities
 
-* One platform: `sensor`. Every entity extends `entity.FuelUsageEntity`.
-* `FuelUsageEntity._attr_has_entity_name = True` and the device name is
+* One platform: `sensor`; all 27 entities are `sensor.FuelUsageSensor`
+  (`CoordinatorEntity` + `SensorEntity`), so they share the device info and the
+  identity attributes below.
+* `FuelUsageSensor._attr_has_entity_name = True` and the device name is
   `fuelusagetracker <entry title>`; combined with `_attr_translation_key = <key>`
   this yields entity ids of the form `sensor.fuelusagetracker_<vehicle>_<key>`.
 * Every entity carries these state attributes: `key`, `vehicle` (config entry

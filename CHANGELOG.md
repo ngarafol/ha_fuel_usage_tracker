@@ -4,6 +4,36 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.5.1] - 2026-10-19
+
+Second complexity audit applied (ponytail-audit) — no behaviour, entity id,
+unique id, unit or attribute changed; 81 tests (was 80) pin exactly that.
+
+### Changed
+
+* `entity.py` is gone: its base class now lives in `sensor.py`, its only
+  consumer, and was then merged into `FuelUsageSensor` itself (one consumer does
+  not need a class hierarchy).
+* `sensor.py`: the separate `unit_template` field is gone (currency templates
+  live in `native_unit_of_measurement` and are always formatted), and the
+  three-branch period-attribute chain became one `period_kind` map.
+* `data.py`: `current_month` / `current_year` share one `_current()` lookup.
+* The card's yearly table lost its "Show all" toggle: the `years` payload is
+  capped at 10 rows (`YEAR_HISTORY_YEARS`), so the button was unreachable.
+* `tests/`: the "27 sensors exist" contract has one owner (`test_setup.py`); the
+  duplicate in `test_monthly.py` is gone, and two new guards cover rendered units
+  and unique ids, which the refactors above would otherwise have changed silently.
+* Repo hygiene: the generated `docs/preview/{monthly-chart,yearly-chart,architecture}.html`
+  pages are no longer committed (the PNGs are the artifact), and the `.gitignore`
+  entry for a ruff cache no tooling creates is gone.
+
+### Rejected
+
+* Inlining `_async_get_coordinator`: `ConfigEntry.runtime_data` is *deleted* on
+  unload (`homeassistant/config_entries.py`), so reading it defensively keeps a
+  clear `HomeAssistantError` instead of an `AttributeError` in a service call
+  that races an unload. The helper body was tightened instead.
+
 ## [0.5.0] - 2026-10-18
 
 ### Added
@@ -136,6 +166,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.5.1]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.5.1
 [0.5.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.5.0
 [0.4.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.4.0
 [0.3.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.3.0

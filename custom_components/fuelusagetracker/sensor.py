@@ -19,10 +19,17 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
+    CONF_ENGINE,
+    CONF_FUEL_TYPE,
+    DOMAIN,
+    ENTITY_PREFIX,
     MONTH_HISTORY_MONTHS,
+    NAME,
     SENSOR_AVG_CONSUMPTION,
     SENSOR_AVG_PRICE_PER_LITER,
     SENSOR_COST_PER_KM,
@@ -52,8 +59,7 @@ from .const import (
     SENSOR_YEAR_LITERS,
     YEAR_HISTORY_YEARS,
 )
-from .data import FuelUsage, FuelUsageCoordinator
-from .entity import FuelUsageEntity
+from .data import FuelUsage, FuelUsageCoordinator, PeriodUsage, vehicle_settings
 
 if TYPE_CHECKING:
     from . import FuelUsageConfigEntry
@@ -63,6 +69,15 @@ _MAX_FILLUPS: Final = 50
 
 #: The period a sensor's value belongs to; the card labels it with that period's key.
 PeriodKind = Literal["month", "rolling", "year"]
+
+#: Per period kind: the attribute carrying its key, and how to read that period.
+_PERIOD_ATTRIBUTES: Final[
+    dict[PeriodKind, tuple[str, Callable[[FuelUsage], PeriodUsage]]]
+] = {
+    "month": ("month", lambda usage: usage.current_month),
+    "rolling": ("window", lambda usage: usage.rolling()),
+    "year": ("year", lambda usage: usage.current_year),
+}
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -75,8 +90,6 @@ class FuelUsageSensorDescription(SensorEntityDescription):
 
     #: Reads the value off `data.FuelUsage`; None makes HA render `unknown`.
     value_fn: Callable[[FuelUsage], Any]
-    #: Unit template with a `{currency}` placeholder, when it embeds the currency.
-    unit_template: str | None = None
     #: Carries the period key as an attribute: `month`, `window` or `year`.
     period_kind: PeriodKind | None = None
 
@@ -113,13 +126,13 @@ SENSOR_DESCRIPTIONS: Final[tuple[FuelUsageSensorDescription, ...]] = (
         key=SENSOR_TOTAL_COST,
         device_class=SensorDeviceClass.MONETARY,
         state_class=SensorStateClass.TOTAL,
-        unit_template="{currency}",
+        native_unit_of_measurement="{currency}",
         value_fn=lambda usage: usage.total_cost,
     ),
     FuelUsageSensorDescription(
         key=SENSOR_AVG_PRICE_PER_LITER,
         state_class=SensorStateClass.MEASUREMENT,
-        unit_template="{currency}/L",
+        native_unit_of_measurement="{currency}/L",
         value_fn=lambda usage: usage.avg_price_per_liter,
     ),
     FuelUsageSensorDescription(
@@ -130,7 +143,7 @@ SENSOR_DESCRIPTIONS: Final[tuple[FuelUsageSensorDescription, ...]] = (
     FuelUsageSensorDescription(
         key=SENSOR_LAST_FILL_COST,
         device_class=SensorDeviceClass.MONETARY,
-        unit_template="{currency}",
+        native_unit_of_measurement="{currency}",
         value_fn=lambda usage: usage.last_fill.price if usage.last_fill else None,
     ),
     FuelUsageSensorDescription(
@@ -142,7 +155,7 @@ SENSOR_DESCRIPTIONS: Final[tuple[FuelUsageSensorDescription, ...]] = (
     FuelUsageSensorDescription(
         key=SENSOR_LAST_PRICE_PER_LITER,
         state_class=SensorStateClass.MEASUREMENT,
-        unit_template="{currency}/L",
+        native_unit_of_measurement="{currency}/L",
         value_fn=lambda usage: usage.last_price_per_liter,
     ),
     FuelUsageSensorDescription(
@@ -160,7 +173,7 @@ SENSOR_DESCRIPTIONS: Final[tuple[FuelUsageSensorDescription, ...]] = (
     FuelUsageSensorDescription(
         key=SENSOR_COST_PER_KM,
         state_class=SensorStateClass.MEASUREMENT,
-        unit_template="{currency}/km",
+        native_unit_of_measurement="{currency}/km",
         value_fn=lambda usage: usage.cost_per_km,
     ),
     FuelUsageSensorDescription(
@@ -185,7 +198,7 @@ SENSOR_DESCRIPTIONS: Final[tuple[FuelUsageSensorDescription, ...]] = (
     FuelUsageSensorDescription(
         key=SENSOR_MONTH_COST,
         device_class=SensorDeviceClass.MONETARY,
-        unit_template="{currency}",
+        native_unit_of_measurement="{currency}",
         period_kind="month",
         value_fn=lambda usage: usage.current_month.cost,
     ),
@@ -218,7 +231,7 @@ SENSOR_DESCRIPTIONS: Final[tuple[FuelUsageSensorDescription, ...]] = (
     FuelUsageSensorDescription(
         key=SENSOR_ROLLING_COST,
         device_class=SensorDeviceClass.MONETARY,
-        unit_template="{currency}",
+        native_unit_of_measurement="{currency}",
         period_kind="rolling",
         value_fn=lambda usage: usage.rolling().cost,
     ),
@@ -245,7 +258,7 @@ SENSOR_DESCRIPTIONS: Final[tuple[FuelUsageSensorDescription, ...]] = (
     FuelUsageSensorDescription(
         key=SENSOR_YEAR_COST,
         device_class=SensorDeviceClass.MONETARY,
-        unit_template="{currency}",
+        native_unit_of_measurement="{currency}",
         period_kind="year",
         value_fn=lambda usage: usage.current_year.cost,
     ),
@@ -259,25 +272,40 @@ SENSOR_DESCRIPTIONS: Final[tuple[FuelUsageSensorDescription, ...]] = (
 )
 
 
-class FuelUsageSensor(FuelUsageEntity, SensorEntity):
-    """One computed statistic of a tracked vehicle."""
+class FuelUsageSensor(CoordinatorEntity[FuelUsageCoordinator], SensorEntity):
+    """One computed statistic of a tracked vehicle.
 
+    The device name carries the integration prefix, so every generated entity_id
+    looks like ``sensor.fuelusagetracker_<vehicle>_<key>``.
+    """
+
+    _attr_has_entity_name = True
     entity_description: FuelUsageSensorDescription
 
     def __init__(
         self, coordinator: FuelUsageCoordinator, description: FuelUsageSensorDescription
     ) -> None:
-        super().__init__(coordinator, description.key)
+        super().__init__(coordinator)
+        entry = coordinator.entry
+        settings = vehicle_settings(entry)
+        self._key = description.key
         self.entity_description = description
+        self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=f"{ENTITY_PREFIX} {entry.title}",
+            manufacturer=NAME,
+            model=settings.get(CONF_ENGINE) or NAME,
+        )
         self._attr_translation_key = description.key
         self._attr_device_class = description.device_class
         self._attr_state_class = description.state_class
-        unit = description.unit_template
-        self._attr_native_unit_of_measurement = (
-            unit.format(currency=coordinator.hass.config.currency)
-            if unit is not None
-            else description.native_unit_of_measurement
+        # Units may embed the currency; `format` returns a unit without
+        # placeholders unchanged. Unitless sensors keep HA's `None`.
+        unit = (description.native_unit_of_measurement or "").format(
+            currency=coordinator.hass.config.currency
         )
+        self._attr_native_unit_of_measurement = unit or None
 
     @property
     def native_value(self) -> Any:
@@ -287,23 +315,27 @@ class FuelUsageSensor(FuelUsageEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Identity attributes, plus the period/history some sensors carry."""
-        attributes = super().extra_state_attributes
+        entry = self.coordinator.entry
+        settings = vehicle_settings(entry)
+        attributes = {
+            "key": self._key,
+            "vehicle": entry.entry_id,
+            "vehicle_name": entry.title,
+            "fuel_type": settings.get(CONF_FUEL_TYPE),
+            "engine": settings.get(CONF_ENGINE),
+        }
         description = self.entity_description
         key = description.key
         usage: FuelUsage = self.coordinator.data
-        if description.period_kind == "month":
-            attributes["month"] = usage.current_month.key
+        if description.period_kind is not None:
+            attribute, read_period = _PERIOD_ATTRIBUTES[description.period_kind]
+            attributes[attribute] = read_period(usage).key
+            # Only the two cost sensors carry the history of their period kind.
             if key == SENSOR_MONTH_COST:
                 attributes["months"] = [
                     period.as_dict() for period in usage.months()[:MONTH_HISTORY_MONTHS]
                 ]
-            return attributes
-        if description.period_kind == "rolling":
-            attributes["window"] = usage.rolling().key
-            return attributes
-        if description.period_kind == "year":
-            attributes["year"] = usage.current_year.key
-            if key == SENSOR_YEAR_COST:
+            elif key == SENSOR_YEAR_COST:
                 attributes["years"] = [
                     period.as_dict() for period in usage.years()[:YEAR_HISTORY_YEARS]
                 ]

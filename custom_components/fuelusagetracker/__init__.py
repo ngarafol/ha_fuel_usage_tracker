@@ -134,9 +134,15 @@ def _async_get_entry(hass: HomeAssistant, vehicle: str) -> ConfigEntry:
 
 
 def _async_get_coordinator(hass: HomeAssistant, vehicle: str) -> FuelUsageCoordinator:
+    """Resolve a vehicle's coordinator, refusing when the entry is not loaded.
+
+    ``ConfigEntry.runtime_data`` is deleted on unload
+    (homeassistant/config_entries.py, ``_async_unload``), so this reads it
+    defensively instead of letting an AttributeError escape into a service call
+    that races an unload.
+    """
     entry = _async_get_entry(hass, vehicle)
-    coordinator: FuelUsageCoordinator | None = getattr(entry, "runtime_data", None)
-    if coordinator is None:
+    if (coordinator := getattr(entry, "runtime_data", None)) is None:
         raise HomeAssistantError(f"Vehicle '{entry.title}' is not loaded yet")
     return coordinator
 

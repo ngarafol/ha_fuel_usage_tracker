@@ -40,7 +40,9 @@ const ROLLING = [
 /**
  * Comparison tables, both drawn by `_renderPeriodTable`: `rows` and `current`
  * name the attributes of `entity` carrying the period payloads and the period
- * the entity states refer to; `limit` is the collapsed row count.
+ * the entity states refer to. `limit` is the collapsed row count; the years
+ * payload is capped at `YEAR_HISTORY_YEARS` (10), so that table has no limit
+ * and renders every row without a toggle.
  */
 const PERIOD_TABLES = [
   {
@@ -61,7 +63,6 @@ const PERIOD_TABLES = [
     header: "Year",
     title: "Yearly comparison",
     empty: "No yearly data yet.",
-    limit: 12,
   },
 ];
 
@@ -472,7 +473,7 @@ class FuelUsageTrackerCard extends HTMLElement {
       tables[table.toggle] = nodes;
       card.append(
         el("div", { class: "section" }, [
-          this._showAllHead(table.toggle, table.title, toggles),
+          this._showAllHead(table.toggle, table.title, toggles, Boolean(table.limit)),
           nodes,
         ])
       );
@@ -577,8 +578,11 @@ class FuelUsageTrackerCard extends HTMLElement {
   /**
    * Section head carrying the shared "Show all (N)"/"Show less" toggle.
    * `key` names the collapsible list; the toggle lands in `toggles[key]`.
+   * A list without a collapsed row count gets a plain head instead.
    */
-  _showAllHead(key, title, toggles) {
+  _showAllHead(key, title, toggles, collapsible = true) {
+    const head = el("div", { class: "section-head" }, [el("span", { text: title })]);
+    if (!collapsible) return head;
     const toggle = el("button", {
       class: "link",
       type: "button",
@@ -586,7 +590,8 @@ class FuelUsageTrackerCard extends HTMLElement {
       onclick: () => this._toggle(key),
     });
     toggles[key] = toggle;
-    return el("div", { class: "section-head" }, [el("span", { text: title }), toggle]);
+    head.append(toggle);
+    return head;
   }
 
   /**
@@ -681,7 +686,9 @@ class FuelUsageTrackerCard extends HTMLElement {
     const attrs = (state && state.attributes) || {};
     const rows = Array.isArray(attrs[table.rows]) ? attrs[table.rows] : [];
     const current = attrs[table.current] || null;
-    const limit = this._showAllRows(table.toggle, rows.length, table.limit);
+    const limit = table.limit
+      ? this._showAllRows(table.toggle, rows.length, table.limit)
+      : rows.length;
 
     if (!rows.length) {
       container.append(el("div", { class: "empty", text: table.empty }));

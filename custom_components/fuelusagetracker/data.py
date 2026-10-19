@@ -291,24 +291,21 @@ class FuelUsage:
                 window.distance = (window.distance or 0.0) + period.distance
         return window
 
+    @staticmethod
+    def _current(periods: list[PeriodUsage], key: str) -> PeriodUsage:
+        """The period with this key, or a zeroed one when it has no fill-up yet."""
+        return next((period for period in periods if period.key == key), PeriodUsage(key=key))
+
     @property
     def current_month(self) -> PeriodUsage:
         """This calendar month in local time; zeroed when it has no fill-up yet."""
         now = dt_util.now()
-        key = month_key(now.year, now.month)
-        return next(
-            (period for period in self.months() if period.key == key),
-            PeriodUsage(key=key),
-        )
+        return self._current(self.months(), month_key(now.year, now.month))
 
     @property
     def current_year(self) -> PeriodUsage:
         """This calendar year in local time; zeroed when it has no fill-up yet."""
-        key = f"{dt_util.now().year:04d}"
-        return next(
-            (period for period in self.years() if period.key == key),
-            PeriodUsage(key=key),
-        )
+        return self._current(self.years(), f"{dt_util.now().year:04d}")
 
 
 
