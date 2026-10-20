@@ -67,14 +67,20 @@ const PERIOD_TABLES = [
 ];
 
 const STYLES = `
-  :host { display: block; }
+  :host { display: block; container-type: inline-size; }
   ha-card { overflow: hidden; }
   .header { display: flex; align-items: center; gap: 12px; padding: 12px 16px 0; flex-wrap: wrap; }
   .header .name { flex: 1 1 auto; font-size: 1.15rem; font-weight: 500; color: var(--primary-text-color); }
   .header select { max-width: 100%; }
   .sub { padding: 2px 16px 10px; font-size: .85rem; color: var(--secondary-text-color); }
   .sub:empty { display: none; }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; padding: 0 16px 12px; }
+  /* Seven columns once they fit: 13 tiles are then always 7 + 6, regardless of
+     whether the values are filled in. Narrower cards (phones) fall back to the
+     readable auto-fit layout instead of squeezing 7 tiny tiles in. */
+  .stats { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding: 0 16px 12px; }
+  @container (max-width: 600px) {
+    .stats { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+  }
   .stat { padding: 8px 10px; border-radius: 8px; background: var(--secondary-background-color); }
   .stat .label { font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--secondary-text-color); }
   .stat .value { margin-top: 2px; font-size: 1.05rem; color: var(--primary-text-color); }
