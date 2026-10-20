@@ -1,0 +1,91 @@
+name: Release
+
+# Push a version tag (`git push --follow-tags`) and this turns it into a GitHub
+# Release whose notes are the matching CHANGELOG.md section, so HACS and the
+# GitHub UI show the version with real notes instead of a bare tag.
+#
+# Tags created before this workflow existed can be released from the Actions
+# tab: Run workflow -> Release -> enter the tag (e.g. v0.6.2).
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to create (or re-create) the release for, e.g. v0.6.2
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create the GitHub release
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+
+      - name: Check that the tag matches manifest.json
+        run: |
+          set -euo pipefail
+          version="$(python3 - <<'PY'
+          import json
+          print(json.load(open("custom_components/fuelusagetracker/manifest.json"))["version"])
+          PY
+          )"
+          tag="${RELEASE_TAG#v}"
+          if [ "$version" != "$tag" ]; then
+            echo "::error::tag ${RELEASE_TAG} does not match manifest.json version ${version}"
+            exit 1
+          fi
+          echo "Tag and manifest agree on ${version}."
+
+      - name: Extract the release notes from CHANGELOG.md
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import re
+
+          version = os.environ["RELEASE_TAG"].removeprefix("v")
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          match = re.search(
+              rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## \[|\Z)",
+              text,
+              re.S | re.M,
+          )
+          notes = match.group(1).strip() if match else ""
+          # An empty file (0 bytes) makes the next step fall back to generated notes.
+          pathlib.Path("notes.md").write_text(f"{notes}\n" if notes else "", encoding="utf-8")
+          print(notes[:500] or f"No CHANGELOG section for {version}; using generated notes.")
+          PY
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Release ${RELEASE_TAG} already exists; nothing to do."
+            exit 0
+          fi
+          if [ -s notes.md ]; then
+            gh release create "${RELEASE_TAG}" \
+              --title "${RELEASE_TAG}" \
+              --notes-file notes.md \
+              --verify-tag
+          else
+            gh release create "${RELEASE_TAG}" \
+              --title "${RELEASE_TAG}" \
+              --generate-notes \
+              --verify-tag
+          fi
+          echo "Created ${RELEASE_TAG}."

@@ -300,6 +300,23 @@ Architecture and the frozen internal contract: [docs/ARCHITECTURE.md](docs/ARCHI
 Versioning is semantic (`manifest.json` + git tags) with the history in
 [CHANGELOG.md](CHANGELOG.md).
 
+### Releases
+
+`manifest.json` is the source of truth for the version. To cut a release: bump
+`manifest.json`, add the matching `## [x.y.z]` section to `CHANGELOG.md`, commit,
+then tag and push:
+
+```bash
+git tag -a v0.6.3 -m "Fuel Usage Tracker 0.6.3"
+git push --follow-tags
+```
+
+`.github/workflows/release.yml` runs on tag push and creates the GitHub Release
+with that CHANGELOG section as its notes; it fails the run when the tag and
+`manifest.json` disagree, and it never creates the same release twice. Tags that
+predate the workflow can be released from the Actions tab (*Release → Run
+workflow → enter the tag*).
+
 ## License
 
 MIT
