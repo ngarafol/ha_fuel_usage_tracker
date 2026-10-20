@@ -447,8 +447,9 @@ class FuelUsageTrackerCard extends HTMLElement {
       ])
     );
 
-    // Odometer update.
-    const odoInput = el("input", { type: "number", min: "0", step: "1", inputmode: "decimal", placeholder: "km" });
+    // Odometer update. `step: any` because odometers can be fractional and a
+    // step anchored at 0 would reject e.g. 128450.5 as a mismatch.
+    const odoInput = el("input", { type: "number", min: "0", step: "any", inputmode: "decimal", placeholder: "km" });
     const odoButton = el("button", { class: "primary", type: "button", text: "Update odometer", onclick: () => this._updateOdometer() });
     card.append(
       el("div", { class: "section" }, [
@@ -463,9 +464,12 @@ class FuelUsageTrackerCard extends HTMLElement {
     // Add fill-up.
     const inputs = {
       date: el("input", { type: "datetime-local", value: this._localDatetime() }),
-      liters: el("input", { type: "number", min: "0.001", step: "0.01", inputmode: "decimal", required: "" }),
+      // `min` is the step base in HTML number inputs: with min 0.001 a plain
+      // 45.20 is a step mismatch and the browser demands three decimals. Two
+      // decimals are enough for a fill-up, so the base is 0.01 itself.
+      liters: el("input", { type: "number", min: "0.01", step: "0.01", inputmode: "decimal", required: "" }),
       price: el("input", { type: "number", min: "0", step: "0.01", inputmode: "decimal", required: "" }),
-      odometer: el("input", { type: "number", min: "0", step: "1", inputmode: "decimal" }),
+      odometer: el("input", { type: "number", min: "0", step: "any", inputmode: "decimal" }),
       full: el("input", { type: "checkbox", checked: "" }),
       station: el("input", { type: "text" }),
     };

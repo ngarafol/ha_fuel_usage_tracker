@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.6.2] - 2026-10-20
+
+### Fixed
+
+* The fill-up litres field rejected plain two-decimal values. In an HTML number
+  input the `step` grid starts at `min`, so `min="0.001"` with `step="0.01"` made
+  45.20 a step mismatch — the browser then demanded three decimals and offered
+  the nearest valid values. The base is now `0.01` (`min`/`step`), so 45, 45.2 and
+  45.25 are all valid; the same fix is in the service form (`services.yaml`).
+* The odometer fields used `step="1"` and rejected fractional readings; both now
+  use `step="any"` as well, so 128450.5 can be entered.
+
 ## [0.6.1] - 2026-10-20
 
 ### Fixed
@@ -203,6 +215,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.6.2]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.6.2
 [0.6.1]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.6.1
 [0.6.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.6.0
 [0.5.1]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.5.1
