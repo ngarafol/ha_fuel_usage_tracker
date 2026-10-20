@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.6.6] - 2026-10-20
+
+### Fixed
+
+* The 13 stat tiles now keep a stable layout. On cards at least 620 px wide the
+  grid is a fixed seven columns, so the tiles are always split 7 + 6 — whether
+  the values are filled in or still unknown. Previously `auto-fit` recomputed the
+  column count from the available width, so the same card could reflow to
+  6 + 6 + 1 depending on how wide it happened to be. Narrow cards (phones) keep
+  the auto-fit layout so the labels stay readable.
+
 ## [0.6.5] - 2026-10-20
 
 ### Added
@@ -243,6 +254,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.6.6]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.6
 [0.6.5]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.5
 [0.6.3]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.3
 [0.6.2]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.2
