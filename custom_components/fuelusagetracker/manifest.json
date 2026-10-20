@@ -1,13 +1,9 @@
 {
   "domain": "fuelusagetracker",
   "name": "Fuel Usage Tracker",
-  "codeowners": [
-    "@nix"
-  ],
+  "codeowners": ["@nix"],
   "config_flow": true,
-  "dependencies": [
-    "frontend"
-  ],
+  "dependencies": ["frontend", "lovelace"],
   "documentation": "https://github.com/ngarafol/ha_fuel_usage_tracker",
   "integration_type": "service",
   "iot_class": "calculated",

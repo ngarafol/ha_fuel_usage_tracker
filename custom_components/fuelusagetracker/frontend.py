@@ -11,6 +11,7 @@ from pathlib import Path
 
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
+from homeassistant.components.lovelace import LOVELACE_DATA
 from homeassistant.core import HomeAssistant
 from homeassistant.loader import async_get_integration
 
@@ -54,4 +55,33 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     # network panel. The static path stays CARD_URL; static serving ignores the query.
     integration = await async_get_integration(hass, DOMAIN)
     version = str(integration.version) if integration.version else ""
-    add_extra_js_url(hass, f"{CARD_URL}?v={version}" if version else CARD_URL)
+    url = f"{CARD_URL}?v={version}" if version else CARD_URL
+    add_extra_js_url(hass, url)
+    await _async_register_resource(hass, url)
+
+
+async def _async_register_resource(hass: HomeAssistant, url: str) -> None:
+    """Register the card as a Lovelace resource as well.
+
+    Dashboards load their resources explicitly, so this still works when a
+    companion app serves a cached frontend shell that lacks the extra-module tag
+    (the app then reported "Custom element does not exist"). The resource is
+    updated in place on a version bump instead of piling up new entries; YAML
+    resource mode has no storage collection and is covered by the module URL.
+    """
+    resources = getattr(hass.data.get(LOVELACE_DATA), "resources", None)
+    if resources is None or not hasattr(resources, "async_create_item"):
+        return
+    try:
+        if not getattr(resources, "loaded", True):
+            await resources.async_load()
+        base = url.split("?")[0]
+        for item in resources.async_items():
+            if str(item.get("url", "")).split("?")[0] == base:
+                if item.get("url") != url:
+                    await resources.async_update_item(item["id"], {"url": url})
+                return
+        await resources.async_create_item({"res_type": "module", "url": url})
+        _LOGGER.debug("Registered the %s card as a dashboard resource", DOMAIN)
+    except Exception:  # noqa: BLE001 - a resource hiccup must not block setup
+        _LOGGER.warning("Could not register the %s dashboard resource", DOMAIN, exc_info=True)

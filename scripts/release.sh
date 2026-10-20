@@ -35,14 +35,18 @@ if [ -n "$unrelated" ]; then
 fi
 
 python3 - "$version" <<'PY'
-import json
 import pathlib
+import re
 import sys
 
+# Replace only the version value: a JSON round-trip would reflow the arrays and
+# turn a one-line change into a formatting diff.
 path = pathlib.Path("custom_components/fuelusagetracker/manifest.json")
-data = json.loads(path.read_text(encoding="utf-8"))
-data["version"] = sys.argv[1]
-path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+text = path.read_text(encoding="utf-8")
+new, count = re.subn(r'("version":\s*")[^"]*(")', rf"\g<1>{sys.argv[1]}\g<2>", text, count=1)
+if count != 1:
+    raise SystemExit("manifest.json has no \"version\" key")
+path.write_text(new, encoding="utf-8")
 PY
 
 git add "$manifest" CHANGELOG.md

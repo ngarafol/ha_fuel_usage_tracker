@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.6.8] - 2026-10-20
+
+### Fixed
+
+* The card is now **also registered as a Lovelace dashboard resource**, not only
+  as an extra frontend module. Dashboards load their resources explicitly, so the
+  card now works even when a companion app serves a cached frontend shell that
+  lacks the extra-module tag — that was the cause of "Custom element does not
+  exist: fuelusagetracker-card" in the app while the browser worked. The resource
+  is updated in place on a version bump (no duplicate entries) and YAML resource
+  mode is left to the module URL. `lovelace` is a declared dependency now.
+* The release script replaces only the version value in `manifest.json` instead
+  of round-tripping the JSON, which used to reflow the arrays on every release.
+
 ## [0.6.7] - 2026-10-20
 
 ### Fixed
@@ -265,6 +279,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.6.8]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.8
 [0.6.7]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.7
 [0.6.6]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.6
 [0.6.5]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.5
