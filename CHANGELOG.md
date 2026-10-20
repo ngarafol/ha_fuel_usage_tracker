@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.6.7] - 2026-10-20
+
+### Fixed
+
+* The card module is now registered as `…/fuelusagetracker-card.js?v=<version>`
+  instead of a fixed URL. Companion apps and browsers were keeping the previous
+  card JS after an update (the extra-module URL never changed), which made the
+  7 + 6 grid fix and the readable render errors look like they "did not work" on
+  the phone. The static path is unchanged — the query only busts caches, and it
+  makes the loaded version visible in the browser/app network panel.
+
 ## [0.6.6] - 2026-10-20
 
 ### Fixed
@@ -254,6 +265,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.6.7]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.7
 [0.6.6]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.6
 [0.6.5]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.5
 [0.6.3]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.3

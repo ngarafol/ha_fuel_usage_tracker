@@ -12,6 +12,7 @@ from pathlib import Path
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
+from homeassistant.loader import async_get_integration
 
 from .const import DOMAIN
 
@@ -47,6 +48,10 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     await hass.http.async_register_static_paths(
         [StaticPathConfig(CARD_URL, str(CARD_FILE), False)]
     )
-    # The manifest declares the frontend component as a dependency, so it is
-    # always set up before this runs and the module URL can be registered.
-    add_extra_js_url(hass, CARD_URL)
+    # The version in the URL is a cache buster: without it the companion apps (and
+    # browsers) happily keep the previous card JS after an update, which looks
+    # exactly like a broken card. It also makes the loaded version visible in the
+    # network panel. The static path stays CARD_URL; static serving ignores the query.
+    integration = await async_get_integration(hass, DOMAIN)
+    version = str(integration.version) if integration.version else ""
+    add_extra_js_url(hass, f"{CARD_URL}?v={version}" if version else CARD_URL)
