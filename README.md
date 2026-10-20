@@ -18,7 +18,7 @@ two clicks.
 ### HACS (custom repository)
 
 1. HACS → Integrations → ⋮ → *Custom repositories*.
-2. Add `https://github.com/nix/ha_fuel_usage_tracker` as an *Integration*.
+2. Add `https://github.com/ngarafol/ha_fuel_usage_tracker` as an *Integration*.
 3. Install **Fuel Usage Tracker**, then restart Home Assistant.
 
 ### Manual
@@ -302,20 +302,28 @@ Versioning is semantic (`manifest.json` + git tags) with the history in
 
 ### Releases
 
-`manifest.json` is the source of truth for the version. To cut a release: bump
-`manifest.json`, add the matching `## [x.y.z]` section to `CHANGELOG.md`, commit,
-then tag and push:
+`manifest.json` is the source of truth for the version. Add the `## [x.y.z]`
+section to [CHANGELOG.md](CHANGELOG.md), then release with one command:
 
 ```bash
-git tag -a v0.6.3 -m "Fuel Usage Tracker 0.6.3"
-git push --follow-tags
+scripts/release.sh 0.6.5     # bumps manifest.json, commits, tags and pushes
 ```
 
-`.github/workflows/release.yml` runs on tag push and creates the GitHub Release
-with that CHANGELOG section as its notes; it fails the run when the tag and
-`manifest.json` disagree, and it never creates the same release twice. Tags that
-predate the workflow can be released from the Actions tab (*Release → Run
-workflow → enter the tag*).
+The script refuses to run when the CHANGELOG section is missing or the working
+tree has unrelated changes, so the tag can never disagree with `manifest.json`.
+`.github/workflows/release.yml` then creates the GitHub Release with that
+CHANGELOG section as its notes (it fails the run on a mismatch and never
+recreates an existing release).
+
+Enable the local pre-push guard once per clone — it blocks a `v*` tag whose
+commit carries another version, before it reaches GitHub:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Tags that predate the workflow can be released from the Actions tab
+(*Release → Run workflow → enter the tag*).
 
 ## License
 

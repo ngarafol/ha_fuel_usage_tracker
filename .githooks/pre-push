@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Refuse to push a v* tag whose commit carries a different manifest.json version.
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+#
+# Without this, the mismatch is only caught later by the Release workflow (which
+# fails the run), leaving a tag on GitHub that cannot produce a release.
+set -euo pipefail
+
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$local_ref" in
+    refs/tags/v*) ;;
+    *) continue ;;
+  esac
+  # All-zero sha means the tag is being deleted; nothing to check.
+  if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+    continue
+  fi
+  tag="${local_ref#refs/tags/}"
+  version="$(git show "${local_sha}:custom_components/fuelusagetracker/manifest.json" 2>/dev/null \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])' 2>/dev/null || echo "?")"
+  if [ "$version" != "${tag#v}" ]; then
+    echo "pre-push: tag ${tag} points at a commit whose manifest.json says ${version}." >&2
+    echo "          Bump manifest.json + CHANGELOG, commit, then re-tag:" >&2
+    echo "          scripts/release.sh ${tag#v}" >&2
+    status=1
+  fi
+done
+exit "$status"

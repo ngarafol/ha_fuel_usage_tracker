@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.6.5] - 2026-10-20
+
+### Added
+
+* `scripts/release.sh X.Y.Z` — one command that bumps `manifest.json`, commits
+  it with the CHANGELOG, creates the annotated tag and pushes both. It refuses
+  when the CHANGELOG section is missing or unrelated files are dirty, so the tag
+  can no longer disagree with the manifest.
+* `.githooks/pre-push` — local guard that blocks pushing a `v*` tag whose commit
+  carries a different version; enable once with
+  `git config core.hooksPath .githooks`.
+
+### Changed
+
+* README *Releases* section documents the one-command flow and the hook instead
+  of the manual tag dance that produced two failed release runs.
+
 ## [0.6.3] - 2026-10-20
 
 ### Added
@@ -226,14 +243,15 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
-[0.6.3]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.6.3
-[0.6.2]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.6.2
-[0.6.1]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.6.1
-[0.6.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.6.0
-[0.5.1]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.5.1
-[0.5.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.5.0
-[0.4.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.4.0
-[0.3.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.3.0
-[0.2.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.2.0
-[0.1.1]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.1.1
-[0.1.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.1.0
+[0.6.5]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.5
+[0.6.3]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.3
+[0.6.2]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.2
+[0.6.1]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.1
+[0.6.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.0
+[0.5.1]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.5.1
+[0.5.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.5.0
+[0.4.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.4.0
+[0.3.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.3.0
+[0.2.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.2.0
+[0.1.1]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.1.1
+[0.1.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.1.0
