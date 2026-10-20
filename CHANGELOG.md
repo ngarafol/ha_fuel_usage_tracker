@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.6.3] - 2026-10-20
+
+### Added
+
+* GitHub Release automation (`.github/workflows/release.yml`): pushing a `v*`
+  tag creates the GitHub Release with the matching CHANGELOG section as notes.
+  The run fails when the tag and `manifest.json` disagree, an existing release is
+  never recreated, and tags that predate the workflow can be released from the
+  Actions tab (*Release → Run workflow → tag*).
+* README *Releases* section documenting the flow.
+
 ## [0.6.2] - 2026-10-20
 
 ### Fixed
@@ -215,6 +226,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.6.3]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.6.3
 [0.6.2]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.6.2
 [0.6.1]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.6.1
 [0.6.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.6.0
