@@ -310,6 +310,17 @@ class FuelUsageTrackerCard extends HTMLElement {
 
   _sync() {
     if (!this._hass) return;
+    try {
+      this._syncState();
+    } catch (err) {
+      // Home Assistant renders a bare "Configuration error" when setConfig
+      // throws, which hides the actual exception (notably in the companion
+      // apps). Show it instead, and keep logging it.
+      this._renderFailure(err);
+    }
+  }
+
+  _syncState() {
     if (!this._built) {
       this._render();
       return;
@@ -318,6 +329,22 @@ class FuelUsageTrackerCard extends HTMLElement {
     const current = this._currentVehicle(this._discover());
     if (!vehicle || !current || current.id !== vehicle.id) this._render();
     else this._update(vehicle);
+  }
+
+  _renderFailure(err) {
+    console.error("[fuelusagetracker-card]", err);
+    const message = String((err && err.message) || err || "unknown error");
+    const root = this.shadowRoot || this.attachShadow({ mode: "open" });
+    root.innerHTML = "";
+    const card = el("ha-card");
+    const box = el("div", { class: "error" });
+    box.append(
+      el("div", { text: "Fuel Usage Tracker could not render this card." }),
+      el("div", { text: message }),
+      el("div", { text: "The full details are in the browser/app console (search for fuelusagetracker-card)." })
+    );
+    card.append(box);
+    root.append(el("style", { text: STYLES }), card);
   }
 
   _render() {

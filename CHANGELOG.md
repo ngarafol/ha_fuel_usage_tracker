@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.6.1] - 2026-10-20
+
+### Fixed
+
+* When rendering throws, the card used to let the exception escape `setConfig`,
+  so Home Assistant showed only a bare *Configuration error* — with no text, most
+  visibly in the companion apps. The card now catches the exception, renders
+  "Fuel Usage Tracker could not render this card." with the exception message,
+  and logs the full stack to the console under `[fuelusagetracker-card]`, so the
+  real cause is visible on the phone as well.
+
 ## [0.6.0] - 2026-10-19
 
 ### Added
@@ -192,6 +203,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.6.1]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.6.1
 [0.6.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.6.0
 [0.5.1]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.5.1
 [0.5.0]: https://github.com/nix/ha_fuel_usage_tracker/releases/tag/v0.5.0
