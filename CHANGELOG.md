@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.6.9] - 2026-10-20
+
+### Added
+
+* README section *Missing card in the companion app*, based on the documented app
+  behaviour (home-assistant/iOS#3315): the mobile apps cache the frontend, so the
+  fix order is restart, check the dashboard resource, then
+  *Companion app → Debugging → Reset frontend cache*.
+
+### Changed
+
+* The dashboard-resource registration logs at info what it did (`Registered …` /
+  `Updated …`) and warns with the exact manual URL when Lovelace runs in YAML
+  resource mode, so a missing card is diagnosable from the Home Assistant log
+  without dev tools.
+
 ## [0.6.8] - 2026-10-20
 
 ### Fixed
@@ -279,6 +295,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.6.9]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.9
 [0.6.8]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.8
 [0.6.7]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.7
 [0.6.6]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.6

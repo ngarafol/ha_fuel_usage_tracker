@@ -71,6 +71,14 @@ async def _async_register_resource(hass: HomeAssistant, url: str) -> None:
     """
     resources = getattr(hass.data.get(LOVELACE_DATA), "resources", None)
     if resources is None or not hasattr(resources, "async_create_item"):
+        _LOGGER.warning(
+            "Lovelace is not in storage resource mode, so the %s card could not be "
+            "added to the dashboard resources automatically. Add this URL under "
+            "Settings -> Dashboards -> Resources (type: JavaScript module), or to "
+            "lovelace.resources in configuration.yaml for YAML mode: %s",
+            DOMAIN,
+            url,
+        )
         return
     try:
         if not getattr(resources, "loaded", True):
@@ -80,8 +88,11 @@ async def _async_register_resource(hass: HomeAssistant, url: str) -> None:
             if str(item.get("url", "")).split("?")[0] == base:
                 if item.get("url") != url:
                     await resources.async_update_item(item["id"], {"url": url})
+                    _LOGGER.info("Updated the %s dashboard resource to %s", DOMAIN, url)
+                else:
+                    _LOGGER.debug("The %s dashboard resource is already current", DOMAIN)
                 return
         await resources.async_create_item({"res_type": "module", "url": url})
-        _LOGGER.debug("Registered the %s card as a dashboard resource", DOMAIN)
+        _LOGGER.info("Registered the %s card as a dashboard resource: %s", DOMAIN, url)
     except Exception:  # noqa: BLE001 - a resource hiccup must not block setup
         _LOGGER.warning("Could not register the %s dashboard resource", DOMAIN, exc_info=True)

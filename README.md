@@ -249,6 +249,28 @@ price, optional odometer, full tank, station), updates the odometer, exports the
 fill-up log to CSV, and lists the 50 most recent fill-ups with delete
 (confirmation dialog).
 
+### Missing card in the companion app
+
+The mobile apps cache the frontend, so a card that renders in a browser can still
+be missing in the app with *"Custom element doesn't exist:
+fuelusagetracker-card"*. The integration registers the card twice — as a
+frontend module and as a dashboard resource — and the resource path survives a
+stale app shell, so check these in order:
+
+1. Update the integration and **restart Home Assistant** (the module URL lives in
+   the running process).
+2. **Settings → Dashboards → ⋮ → Resources** must list
+   `/fuelusagetracker/fuelusagetracker-card.js?v=…` (type *JavaScript module*).
+   The log line `Registered the fuelusagetracker card as a dashboard resource`
+   confirms it; a warning there names the manual step when Lovelace runs in YAML
+   resource mode.
+3. In the app: **Settings → Companion app → Debugging → Reset frontend cache**,
+   then force-close and reopen. This is the documented fix for app-only custom
+   card failures ([home-assistant/iOS#3315](https://github.com/home-assistant/iOS/issues/3315)).
+4. If it still fails, open the same dashboard in the phone's browser: working
+   there but not in the app means the app's WebView storage is stale —
+   reinstalling the app clears it.
+
 ## What it looks like
 
 The card on a dashboard (real data: a diesel Passat over almost three years;
