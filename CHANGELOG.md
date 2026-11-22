@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.7.0] - 2026-10-22
+
+### Fixed
+
+* `cost_per_km` counted fuel that was still in the tank. It divided *all* spend
+  by the measured distance, so the latest fill-up — bought for the next leg —
+  inflated the rate (40 L for 60 € at 10 000 km + 45 L for 70 € at 10 500 km gave
+  0.26 €/km instead of 0.14). Each leg now carries the cost of the fuel it
+  actually burned (the closing fill-up plus any partial fills) and
+  `cost_per_km` is that sum over the leg kilometres. `total_cost`,
+  `total_liters` and period `cost` stay purchase-based.
+
+### Changed
+
+* **Breaking:** the `km_since_last_fill` sensor is replaced by
+  `distance_to_last_fill` (km driven until the latest fill-up, i.e. the last
+  measured tank). With odometers entered only at fill-ups, "km since last fill"
+  was permanently 0. The card's tile follows; entity count stays 27.
+
+### Added
+
+* README section *How the numbers are calculated*: tank-to-tank accounting, what
+  the first fill-up means (the starting tank: its money counts as spend, not as
+  cost of driving), a worked example, and why spend and consumption differ.
+* Tests for `cost_per_km` (plain leg 0.14, with a partial 0.17, unknown without a
+  measured leg, and a trailing purchase that must not change the rate) and for
+  `distance_to_last_fill`.
+
 ## [0.6.9] - 2026-10-20
 
 ### Added
@@ -295,6 +323,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.7.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.7.0
 [0.6.9]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.9
 [0.6.8]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.8
 [0.6.7]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.7
