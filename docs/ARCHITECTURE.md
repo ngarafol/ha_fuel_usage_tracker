@@ -52,9 +52,10 @@ the wizard but wrote to a different dict.
   distance is unknown.
 
 `data.FuelUsage` exposes the computed values used by sensors:
-`fill_count`, `total_liters`, `total_cost`, `avg_price_per_liter`, `last_fill`,
-`last_price_per_liter`, `odometer`, `total_distance`, `last_leg_distance`,
-`avg_consumption`, `last_consumption`, `cost_per_km`.
+`fill_count`, `total_liters`, `total_cost`, `avg_price_per_liter`,
+`consumed_liters`, `consumed_cost`, `last_fill`, `last_price_per_liter`,
+`odometer`, `total_distance`, `last_leg_distance`, `avg_consumption`,
+`last_consumption`, `cost_per_km`.
 Each returns `None` when it cannot be computed (sensor state must then be
 `unknown`).
 
@@ -67,6 +68,8 @@ spend is in `total_cost` but not in `cost_per_km`. `cost_per_km` is
 leg, so it is excluded until the next full tank closes it. `total_cost` and
 `total_liters` stay purchase-based (all money spent / all litres bought), and
 `avg_price_per_liter` is the average purchase price — not the cost of driving.
+`consumed_liters` and `consumed_cost` are the burned side: the sum of the legs'
+litres and of the money spent on that fuel (they are 0 until a leg closes).
 `last_leg_distance` is the last measured leg's distance; there is deliberately no
 "km since last fill" value, because odometers are entered at fill-ups, so it
 would always be 0.
@@ -116,6 +119,8 @@ Sensor key table (keys are defined in `const.py`, names come from
 | `total_liters` | – | total | L | `usage.total_liters` |
 | `total_cost` | monetary | total | currency | `usage.total_cost` |
 | `avg_price_per_liter` | – | measurement | `<currency>/L` | `usage.avg_price_per_liter` |
+| `consumed_liters` | – | total | L | `usage.consumed_liters` |
+| `consumed_cost` | monetary | total | currency | `usage.consumed_cost` |
 | `last_fill` | timestamp | – | – | `usage.last_fill.date` |
 | `last_fill_cost` | monetary | – | currency | `usage.last_fill.price` |
 | `last_fill_liters` | volume_storage | – | L | `usage.last_fill.liters` |

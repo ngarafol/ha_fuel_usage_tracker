@@ -63,6 +63,12 @@
       "avg_price_per_liter": {
         "name": "Average price per liter"
       },
+      "consumed_cost": {
+        "name": "Consumed fuel cost"
+      },
+      "consumed_liters": {
+        "name": "Consumed litres"
+      },
       "cost_per_km": {
         "name": "Cost per km"
       },

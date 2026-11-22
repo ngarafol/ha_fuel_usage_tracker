@@ -53,6 +53,29 @@ async def test_distance_to_last_fill_is_unknown_until_a_leg_closes(hass):
     assert sensor_value(hass, const.SENSOR_DISTANCE_TO_LAST_FILL) == 500.0
 
 
+async def test_consumed_sensors_report_the_burned_fuel(hass):
+    entry = await setup_vehicle(hass)
+
+    await two_full_fillups(hass, entry.entry_id)
+
+    assert sensor_value(hass, const.SENSOR_CONSUMED_LITERS) == 45.0
+    assert sensor_value(hass, const.SENSOR_CONSUMED_COST) == 67.5
+    assert sensor_value(hass, const.SENSOR_TOTAL_LITERS) == 85.0
+    assert sensor_value(hass, const.SENSOR_TOTAL_COST) == 127.5
+
+
+async def test_consumed_sensors_are_zero_until_a_leg_closes(hass):
+    entry = await setup_vehicle(hass)
+
+    await add_fillup(
+        hass, entry.entry_id, 40, 60.0, odometer=BASE_ODOMETER, date=FILLUP_DATE_1
+    )
+
+    assert sensor_value(hass, const.SENSOR_CONSUMED_LITERS) == 0.0
+    assert sensor_value(hass, const.SENSOR_CONSUMED_COST) == 0.0
+    assert sensor_value(hass, const.SENSOR_TOTAL_LITERS) == 40.0
+
+
 async def test_partial_fill_is_folded_into_the_leg(hass):
     entry = await setup_vehicle(hass)
 

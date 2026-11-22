@@ -32,6 +32,8 @@ from .const import (
     NAME,
     SENSOR_AVG_CONSUMPTION,
     SENSOR_AVG_PRICE_PER_LITER,
+    SENSOR_CONSUMED_COST,
+    SENSOR_CONSUMED_LITERS,
     SENSOR_COST_PER_KM,
     SENSOR_DISTANCE_TO_LAST_FILL,
     SENSOR_FILL_COUNT,
@@ -134,6 +136,20 @@ SENSOR_DESCRIPTIONS: Final[tuple[FuelUsageSensorDescription, ...]] = (
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="{currency}/L",
         value_fn=lambda usage: usage.avg_price_per_liter,
+    ),
+    # Fuel that actually left the tank, as opposed to the purchased totals above.
+    FuelUsageSensorDescription(
+        key=SENSOR_CONSUMED_LITERS,
+        state_class=SensorStateClass.TOTAL,
+        native_unit_of_measurement="L",
+        value_fn=lambda usage: usage.consumed_liters,
+    ),
+    FuelUsageSensorDescription(
+        key=SENSOR_CONSUMED_COST,
+        device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.TOTAL,
+        native_unit_of_measurement="{currency}",
+        value_fn=lambda usage: usage.consumed_cost,
     ),
     FuelUsageSensorDescription(
         key=SENSOR_LAST_FILL,

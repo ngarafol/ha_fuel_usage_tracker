@@ -63,6 +63,12 @@
       "avg_price_per_liter": {
         "name": "Prosječna cijena po litri"
       },
+      "consumed_cost": {
+        "name": "Trošak potrošenog goriva"
+      },
+      "consumed_liters": {
+        "name": "Potrošene litre"
+      },
       "cost_per_km": {
         "name": "Trošak po kilometru"
       },

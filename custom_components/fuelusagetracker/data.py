@@ -235,6 +235,25 @@ class FuelUsage:
         return round(legs[-1][1], 1) if legs else None
 
     @property
+    def consumed_liters(self) -> float:
+        """Litres burned over the measured legs.
+
+        This is fuel that actually left the tank, so it excludes the starting
+        tank (the first fill-up) and the fuel bought for the next leg.
+        """
+        return round(sum((leg[0] for leg in self._legs()), 0.0), 3)
+
+    @property
+    def consumed_cost(self) -> float:
+        """Money spent on the fuel those legs burned.
+
+        Same scope as ``consumed_liters``: the closing fill-ups plus the partial
+        fill-ups between them. The latest fill-up is not in here until the next
+        full tank closes its leg.
+        """
+        return round(sum((leg[2] for leg in self._legs()), 0.0), 2)
+
+    @property
     def cost_per_km(self) -> float | None:
         """Fuel cost per kilometre of the measured legs.
 

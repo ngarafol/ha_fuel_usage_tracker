@@ -167,3 +167,51 @@ def test_last_leg_distance_is_the_most_recent_measured_leg():
     assert two.last_leg_distance == 500.0
     assert three.last_leg_distance == 300.0
     assert FuelUsage(fillups=[fill(40, 10000.0)]).last_leg_distance is None
+
+
+def test_consumed_metrics_exclude_the_starting_tank_and_the_newest_purchase():
+    usage = FuelUsage(
+        fillups=[fill(40, 10000.0, price=60.0), fill(45, 10500.0, price=70.0)],
+        baseline_odometer=10000.0,
+    )
+
+    # Only the closing fill was burned; the opening tank is the baseline and the
+    # newest purchase fuels the next leg.
+    assert usage.consumed_liters == 45.0
+    assert usage.consumed_cost == 70.0
+    assert usage.total_liters == 85.0
+    assert usage.total_cost == 130.0
+
+
+def test_consumed_metrics_include_a_partial_fill_inside_the_leg():
+    usage = FuelUsage(
+        fillups=[
+            fill(40, 10000.0, price=60.0),
+            fill(10, 10250.0, full=False, price=15.0),
+            fill(45, 10500.0, price=70.0),
+        ],
+        baseline_odometer=10000.0,
+    )
+
+    assert usage.consumed_liters == 55.0
+    assert usage.consumed_cost == 85.0
+    assert usage.total_liters == 95.0
+    assert usage.total_cost == 145.0
+
+
+def test_consumed_metrics_are_zero_without_a_measured_leg():
+    single = FuelUsage(fillups=[fill(40, 10000.0, price=60.0)])
+    unmeasured = FuelUsage(
+        fillups=[fill(40, None, price=60.0), fill(45, None, price=70.0)]
+    )
+
+    # Zero, not unknown: the car burned nothing we can measure yet. And a float,
+    # never the int 0 an empty sum would produce.
+    assert single.consumed_liters == 0.0
+    assert single.consumed_cost == 0.0
+    assert isinstance(single.consumed_liters, float)
+    assert isinstance(single.consumed_cost, float)
+    assert unmeasured.consumed_liters == 0.0
+    assert unmeasured.consumed_cost == 0.0
+    assert single.total_cost == 60.0
+    assert unmeasured.total_liters == 85.0

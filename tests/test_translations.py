@@ -70,3 +70,10 @@ def test_the_swapped_sensor_key_is_translated_everywhere():
         names = _load(name)["entity"]["sensor"]
         assert names.get(const.SENSOR_DISTANCE_TO_LAST_FILL, {}).get("name"), name
         assert "km_since_last_fill" not in names, name
+
+
+def test_the_consumed_sensor_keys_are_translated_everywhere():
+    for name in TRANSLATIONS:
+        names = _load(name)["entity"]["sensor"]
+        for key in (const.SENSOR_CONSUMED_LITERS, const.SENSOR_CONSUMED_COST):
+            assert names.get(key, {}).get("name"), f"{name}: entity.sensor.{key}.name"

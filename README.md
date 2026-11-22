@@ -88,6 +88,8 @@ For a vehicle named `Passat` (device `fuelusagetracker Passat`):
 | `sensor.fuelusagetracker_passat_total_liters` | Total litres refuelled |
 | `sensor.fuelusagetracker_passat_total_cost` | Total fuel cost |
 | `sensor.fuelusagetracker_passat_average_price_per_liter` | Average price per litre |
+| `sensor.fuelusagetracker_passat_consumed_litres` | Litres burned over the measured legs (excludes the starting tank and the newest fill-up) |
+| `sensor.fuelusagetracker_passat_consumed_fuel_cost` | Money spent on that burned fuel |
 | `sensor.fuelusagetracker_passat_last_fill_up` | Timestamp of the newest fill-up (+ fill-up list attribute) |
 | `sensor.fuelusagetracker_passat_last_fill_up_cost` | Cost of the newest fill-up |
 | `sensor.fuelusagetracker_passat_last_fill_up_liters` | Litres of the newest fill-up |
@@ -138,9 +140,11 @@ fill to the brim again), so every number describes fuel that was really burned:
   `cost_per_km` until the next full tank closes that leg — it is in `total_cost`
   because you already paid for it.
 * `total_cost`, `total_liters`, `last_fill_*` and the period `cost` are
-  **purchases** (what left your wallet); `avg_consumption`, `last_consumption`,
-  `cost_per_km` and the period `avg_consumption` are **measurements** (what was
-  burned). Both are honest, they just answer different questions.
+  **purchases** (what left your wallet); `consumed_liters`, `consumed_cost`,
+  `avg_consumption`, `last_consumption`, `cost_per_km` and the period
+  `avg_consumption` are **measurements** (what was burned). Both are honest,
+  they just answer different questions, and the card shows the burned side next
+  to the averages with the purchase totals at the end.
 
 Example: 40 L for 60 € at 10 000 km, then 45 L for 70 € at 10 500 km.
 
@@ -149,6 +153,7 @@ Example: 40 L for 60 € at 10 000 km, then 45 L for 70 € at 10 500 km.
 | Total spent | 130 € |
 | Total litres | 85 L |
 | Measured leg | 500 km, 45 L burned |
+| Consumed | 45 L, 70 € (what left the tank on that leg) |
 | Consumption | 9.0 L/100 km (45 L per 500 km) |
 | Cost of that driving | 70 € → **0.14 €/km** |
 | What the old "total ÷ distance" formula would have said | 0.26 €/km (wrong: counts fuel that was still in the tank) |

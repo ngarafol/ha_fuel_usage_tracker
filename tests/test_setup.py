@@ -1,4 +1,4 @@
-"""Entry setup: one device, all 27 sensors, shared identity attributes."""
+"""Entry setup: one device, all 29 sensors, shared identity attributes."""
 
 from __future__ import annotations
 
@@ -15,7 +15,9 @@ SENSOR_UNITS = {
     const.SENSOR_DISTANCE_TO_LAST_FILL: "km",
     const.SENSOR_TOTAL_DISTANCE: "km",
     const.SENSOR_TOTAL_LITERS: "L",
+    const.SENSOR_CONSUMED_LITERS: "L",
     const.SENSOR_TOTAL_COST: "EUR",
+    const.SENSOR_CONSUMED_COST: "EUR",
     const.SENSOR_AVG_PRICE_PER_LITER: "EUR/L",
     const.SENSOR_LAST_FILL: None,
     const.SENSOR_LAST_FILL_COST: "EUR",
@@ -55,13 +57,13 @@ async def test_setup_creates_the_vehicle_device(hass):
     assert device.name == f"{const.ENTITY_PREFIX} {entry.title}"
 
 
-async def test_setup_creates_all_twenty_seven_sensors(hass):
+async def test_setup_creates_all_twenty_nine_sensors(hass):
     entry = await setup_vehicle(hass)
 
     entities = _registered_entities(hass, entry)
 
-    assert len(SENSOR_KEYS) == 27
-    assert len(entities) == 27
+    assert len(SENSOR_KEYS) == 29
+    assert len(entities) == 29
     for entity in entities:
         assert entity.entity_id.startswith(f"sensor.{const.ENTITY_PREFIX}_")
     assert {
@@ -96,7 +98,7 @@ async def test_every_sensor_carries_its_unique_id(hass):
 
     entities = _registered_entities(hass, entry)
 
-    assert len({entity.unique_id for entity in entities}) == 27
+    assert len({entity.unique_id for entity in entities}) == 29
     for entity in entities:
         key = hass.states.get(entity.entity_id).attributes["key"]
         assert entity.unique_id == f"{entry.entry_id}_{key}"
@@ -114,3 +116,20 @@ async def test_distance_to_last_fill_replaced_km_since_last_fill(hass):
     distance = by_key[const.SENSOR_DISTANCE_TO_LAST_FILL]
     assert distance.unit_of_measurement == "km"
     assert distance.capabilities["state_class"] == "measurement"
+
+
+async def test_consumed_sensors_carry_their_contracted_classes(hass):
+    await setup_vehicle(hass)
+
+    attributes = {
+        state.attributes["key"]: state.attributes
+        for state in hass.states.async_all("sensor")
+    }
+
+    liters = attributes[const.SENSOR_CONSUMED_LITERS]
+    assert liters.get("device_class") is None
+    assert liters["state_class"] == "total"
+
+    cost = attributes[const.SENSOR_CONSUMED_COST]
+    assert cost["device_class"] == "monetary"
+    assert cost["state_class"] == "total"

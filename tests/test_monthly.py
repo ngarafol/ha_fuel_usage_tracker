@@ -1,7 +1,7 @@
 """Monthly statistics: purchased litres vs. closed legs, local-time bucketing,
 ordering, the history cap and the five ``month_*`` sensors.
 
-Contract: ``docs/ARCHITECTURE.md`` "Period statistics" plus the 27-row sensor
+Contract: ``docs/ARCHITECTURE.md`` "Period statistics" plus the 29-row sensor
 key table.
 """
 

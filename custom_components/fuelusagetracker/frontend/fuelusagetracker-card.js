@@ -17,8 +17,10 @@ const STATS = [
   { key: "cost_per_km", label: "Cost per km", digits: 3 },
   // Not money: the unit span carries the per-litre unit (e.g. "EUR/L"), like cost_per_km.
   { key: "avg_price_per_liter", label: "Avg price per litre", digits: 3 },
-  { key: "total_cost", label: "Total cost", digits: 2, money: true },
-  { key: "total_liters", label: "Total litres", digits: 2 },
+  // Burned side; the purchased totals close the list so the averages are not
+  // crowded by sums.
+  { key: "consumed_liters", label: "Consumed litres", digits: 2 },
+  { key: "consumed_cost", label: "Consumed cost", digits: 2, money: true },
   { key: "total_distance", label: "Total distance", digits: 0 },
   { key: "distance_to_last_fill", label: "Distance to last fill", digits: 0 },
   { key: "fill_count", label: "Fill-ups", digits: 0 },
@@ -27,6 +29,8 @@ const STATS = [
   { key: "month_avg_consumption", label: "This month consumption", digits: 2, period: "month" },
   { key: "year_cost", label: "This year", digits: 2, money: true, period: "year" },
   { key: "year_avg_consumption", label: "This year consumption", digits: 2, period: "year" },
+  { key: "total_cost", label: "Total cost", digits: 2, money: true },
+  { key: "total_liters", label: "Total litres", digits: 2 },
 ];
 
 /** Trailing-window strip: sensor key, field label, fraction digits, money flag. */
@@ -74,16 +78,16 @@ const STYLES = `
   .header select { max-width: 100%; }
   .sub { padding: 2px 16px 10px; font-size: .85rem; color: var(--secondary-text-color); }
   .sub:empty { display: none; }
-  /* Seven columns once they fit: 13 tiles are then always 7 + 6, regardless of
+  /* Eight columns once they fit: 15 tiles are then always 8 + 7, regardless of
      whether the values are filled in. Narrower cards (phones) fall back to the
-     readable auto-fit layout instead of squeezing 7 tiny tiles in. */
-  .stats { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding: 0 16px 12px; }
-  @container (max-width: 600px) {
-    .stats { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+     readable auto-fit layout instead of squeezing 8 tiny tiles in. */
+  .stats { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; padding: 0 16px 12px; }
+  @container (max-width: 927px) {
+    .stats { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); }
   }
   .stat { padding: 8px 10px; border-radius: 8px; background: var(--secondary-background-color); }
   .stat .label { font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--secondary-text-color); }
-  .stat .value { margin-top: 2px; font-size: 1.05rem; color: var(--primary-text-color); }
+  .stat .value { display: flex; flex-wrap: wrap; align-items: baseline; margin-top: 2px; font-size: 1.05rem; color: var(--primary-text-color); }
   .stat .unit { margin-left: 3px; font-size: .72rem; color: var(--secondary-text-color); }
   .stat .month { margin-left: 4px; font-size: .7rem; color: var(--secondary-text-color); }
   .section { border-top: 1px solid var(--divider-color); }
