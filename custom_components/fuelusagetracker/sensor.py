@@ -34,7 +34,7 @@ from .const import (
     SENSOR_AVG_PRICE_PER_LITER,
     SENSOR_CONSUMED_COST,
     SENSOR_CONSUMED_LITERS,
-    SENSOR_COST_PER_KM,
+    SENSOR_COST_PER_100KM,
     SENSOR_DISTANCE_TO_LAST_FILL,
     SENSOR_FILL_COUNT,
     SENSOR_LAST_CONSUMPTION,
@@ -48,6 +48,7 @@ from .const import (
     SENSOR_MONTH_FILL_COUNT,
     SENSOR_MONTH_LITERS,
     SENSOR_ODOMETER,
+    SENSOR_RANGE_FULL_TANK,
     SENSOR_ROLLING_AVG_CONSUMPTION,
     SENSOR_ROLLING_COST,
     SENSOR_ROLLING_DISTANCE,
@@ -110,6 +111,13 @@ SENSOR_DESCRIPTIONS: Final[tuple[FuelUsageSensorDescription, ...]] = (
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="km",
         value_fn=lambda usage: usage.last_leg_distance,
+    ),
+    FuelUsageSensorDescription(
+        key=SENSOR_RANGE_FULL_TANK,
+        device_class=SensorDeviceClass.DISTANCE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="km",
+        value_fn=lambda usage: usage.range_full_tank,
     ),
     FuelUsageSensorDescription(
         key=SENSOR_TOTAL_DISTANCE,
@@ -187,10 +195,10 @@ SENSOR_DESCRIPTIONS: Final[tuple[FuelUsageSensorDescription, ...]] = (
         value_fn=lambda usage: usage.avg_consumption,
     ),
     FuelUsageSensorDescription(
-        key=SENSOR_COST_PER_KM,
+        key=SENSOR_COST_PER_100KM,
         state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement="{currency}/km",
-        value_fn=lambda usage: usage.cost_per_km,
+        native_unit_of_measurement="{currency}/100km",
+        value_fn=lambda usage: usage.cost_per_100km,
     ),
     FuelUsageSensorDescription(
         key=SENSOR_FILL_COUNT,
@@ -368,9 +376,7 @@ class FuelUsageSensor(CoordinatorEntity[FuelUsageCoordinator], SensorEntity):
             station=last.station if last else None,
             full=last.full if last else None,
             notes=last.notes if last else None,
-            fillups=[
-                fill.as_dict() for fill in reversed(usage.fillups[-_MAX_FILLUPS:])
-            ],
+            fillups=usage.fillup_rows(_MAX_FILLUPS),
         )
         return attributes
 

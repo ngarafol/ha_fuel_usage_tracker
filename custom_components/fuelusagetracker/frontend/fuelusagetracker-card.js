@@ -14,8 +14,8 @@ const DOMAIN = "fuelusagetracker";
 const STATS = [
   { key: "avg_consumption", label: "Avg consumption", digits: 2 },
   { key: "last_consumption", label: "Last consumption", digits: 2 },
-  { key: "cost_per_km", label: "Cost per km", digits: 3 },
-  // Not money: the unit span carries the per-litre unit (e.g. "EUR/L"), like cost_per_km.
+  { key: "cost_per_100km", label: "Cost per 100 km", digits: 2 },
+  // Not money: the unit span carries the per-litre unit (e.g. "EUR/L"), like cost_per_100km.
   { key: "avg_price_per_liter", label: "Avg price per litre", digits: 3 },
   // Burned side; the purchased totals close the list so the averages are not
   // crowded by sums.
@@ -23,6 +23,7 @@ const STATS = [
   { key: "consumed_cost", label: "Consumed cost", digits: 2, money: true },
   { key: "total_distance", label: "Total distance", digits: 0 },
   { key: "distance_to_last_fill", label: "Distance to last fill", digits: 0 },
+  { key: "range_full_tank", label: "Range (full tank)", digits: 0 },
   { key: "fill_count", label: "Fill-ups", digits: 0 },
   // `period` names the entity attribute (month/year) shown next to the tile.
   { key: "month_cost", label: "This month", digits: 2, money: true, period: "month" },
@@ -110,8 +111,8 @@ const STYLES = `
   .fill { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 8px 0; border-top: 1px solid var(--divider-color); }
   .fill:first-child { border-top: none; }
   .fill .main { grid-column: 1; font-size: .95rem; color: var(--primary-text-color); }
-  .fill .meta { grid-column: 1; font-size: .78rem; color: var(--secondary-text-color); }
-  .fill button { grid-area: 1 / 2 / span 2 / 3; align-self: center; }
+  .fill .meta, .fill .leg { grid-column: 1; font-size: .78rem; color: var(--secondary-text-color); }
+  .fill button { grid-area: 1 / 2 / span 3 / 3; align-self: center; }
   .empty, .error, .notice { padding: 0 16px 12px; font-size: .85rem; }
   .empty, .notice { color: var(--secondary-text-color); }
   .error { color: var(--error-color, #db4437); }
@@ -235,7 +236,7 @@ class FuelUsageTrackerCard extends HTMLElement {
   }
 
   _currency(vehicle) {
-    for (const key of ["total_cost", "last_fill_cost", "cost_per_km", "avg_price_per_liter"]) {
+    for (const key of ["total_cost", "last_fill_cost", "cost_per_100km", "avg_price_per_liter"]) {
       const state = this._entity(vehicle, key);
       const unit = state && state.attributes && state.attributes.unit_of_measurement;
       if (unit) return String(unit).split("/")[0].trim();
@@ -675,19 +676,38 @@ class FuelUsageTrackerCard extends HTMLElement {
       ]
         .filter(Boolean)
         .join(" · ");
+      // Leg keys only exist on a full fill-up that closed a measured leg.
+      const leg = [
+        fill.leg_distance === null || fill.leg_distance === undefined
+          ? null
+          : `${this._number(Number(fill.leg_distance), 0)} km`,
+        fill.leg_liters === null || fill.leg_liters === undefined
+          ? null
+          : `${this._number(Number(fill.leg_liters), 2)} L`,
+        fill.leg_consumption === null || fill.leg_consumption === undefined
+          ? null
+          : `${this._number(Number(fill.leg_consumption), 2)} L/100km`,
+        fill.leg_cost === null || fill.leg_cost === undefined
+          ? null
+          : this._money(Number(fill.leg_cost), currency),
+      ]
+        .filter(Boolean)
+        .join(" · ");
 
-      nodes.append(
-        el("div", { class: "fill" }, [
-          el("div", { class: "main", text: main }),
-          el("div", { class: "meta", text: meta }),
-          el("button", {
-            class: "danger",
-            type: "button",
-            text: "Delete",
-            onclick: () => this._deleteFillup(fill.id),
-          }),
-        ])
+      const row = [
+        el("div", { class: "main", text: main }),
+        el("div", { class: "meta", text: meta }),
+      ];
+      if (leg) row.push(el("div", { class: "leg", text: `Leg: ${leg}` }));
+      row.push(
+        el("button", {
+          class: "danger",
+          type: "button",
+          text: "Delete",
+          onclick: () => this._deleteFillup(fill.id),
+        })
       );
+      nodes.append(el("div", { class: "fill" }, row));
     }
   }
 

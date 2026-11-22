@@ -29,7 +29,8 @@ this document. Change it here first, then change code.
 
 Config/options keys: `name` (also the entry title), `fuel_type`
 (`petrol|diesel|lpg|cng|hybrid|electric|other`), `engine` (free text),
-`odometer` (baseline odometer in km, float).
+`odometer` (odometer in km at the start of tracking, float) and
+`tank_liters` (optional tank capacity in L, float; enables `range_full_tank`).
 
 `vehicle_settings(entry)` in `data.py` merges `entry.data` with `entry.options`
 (options win) — always use it instead of reading `entry.data` directly. Entry
@@ -55,7 +56,8 @@ the wizard but wrote to a different dict.
 `fill_count`, `total_liters`, `total_cost`, `avg_price_per_liter`,
 `consumed_liters`, `consumed_cost`, `last_fill`, `last_price_per_liter`,
 `odometer`, `total_distance`, `last_leg_distance`, `avg_consumption`,
-`last_consumption`, `cost_per_km`.
+`last_consumption`, `cost_per_100km`, `range_full_tank`, and
+`fillup_rows(limit)` for the annotated fill-up payload.
 Each returns `None` when it cannot be computed (sensor state must then be
 `unknown`).
 
@@ -63,13 +65,15 @@ Each returns `None` when it cannot be computed (sensor state must then be
 `cost` is the money spent on the fuel that leg **burned** — the closing fill-up
 plus every partial fill-up since the previous full tank. The first full tank is
 the baseline (the tank the car arrived with) and never belongs to a leg, so its
-spend is in `total_cost` but not in `cost_per_km`. `cost_per_km` is
+spend is in `total_cost` but not in `cost_per_100km`. `cost_per_100km` is
 `sum(leg costs) / sum(leg distances)`; the latest fill-up's fuel buys the *next*
 leg, so it is excluded until the next full tank closes it. `total_cost` and
 `total_liters` stay purchase-based (all money spent / all litres bought), and
 `avg_price_per_liter` is the average purchase price — not the cost of driving.
 `consumed_liters` and `consumed_cost` are the burned side: the sum of the legs'
 litres and of the money spent on that fuel (they are 0 until a leg closes).
+`range_full_tank` is `tank_liters / avg_consumption * 100` and only exists with
+an optional capacity; it is the range of a *full* tank, not a live level.
 `last_leg_distance` is the last measured leg's distance; there is deliberately no
 "km since last fill" value, because odometers are entered at fill-ups, so it
 would always be 0.
@@ -115,6 +119,7 @@ Sensor key table (keys are defined in `const.py`, names come from
 | --- | --- | --- | --- | --- |
 | `odometer` | distance | total_increasing | km | `usage.odometer` |
 | `distance_to_last_fill` | distance | measurement | km | `usage.last_leg_distance` |
+| `range_full_tank` | distance | measurement | km | `usage.range_full_tank` |
 | `total_distance` | distance | total_increasing | km | `usage.total_distance` |
 | `total_liters` | – | total | L | `usage.total_liters` |
 | `total_cost` | monetary | total | currency | `usage.total_cost` |
@@ -127,7 +132,7 @@ Sensor key table (keys are defined in `const.py`, names come from
 | `last_price_per_liter` | – | measurement | `<currency>/L` | `usage.last_price_per_liter` |
 | `last_consumption` | – | measurement | `L/100km` | `usage.last_consumption` |
 | `avg_consumption` | – | measurement | `L/100km` | `usage.avg_consumption` |
-| `cost_per_km` | – | measurement | `<currency>/km` | `usage.cost_per_km` |
+| `cost_per_100km` | – | measurement | `<currency>/100km` | `usage.cost_per_100km` |
 | `fill_count` | – | – | – | `usage.fill_count` |
 | `month_distance` | distance | – | km | `usage.current_month.distance` |
 | `month_liters` | – | – | L | `usage.current_month.liters` |
@@ -213,7 +218,9 @@ The `last_fill` sensor additionally exposes, for the card:
 
 * `fillup_id`, `liters`, `price`, `price_per_liter`, `odometer`, `station`,
   `full`, `notes` of the newest fill-up;
-* `fillups`: the newest first list of fill-up dicts (shape of
+* `fillups`: the newest first list of fill-up dicts, at most 50; a full fill-up
+  that closed a measured leg also carries `leg_liters`, `leg_distance`,
+  `leg_cost` and `leg_consumption` (L/100 km) — the fuel that leg burned. Shape of
   `FillUp.as_dict()`), **capped at the 50 newest** because HA limits attribute
   size.
 

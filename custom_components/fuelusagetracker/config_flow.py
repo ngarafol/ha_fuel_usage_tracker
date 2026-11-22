@@ -22,6 +22,7 @@ from .const import (
     CONF_FUEL_TYPE,
     CONF_NAME,
     CONF_ODOMETER,
+    CONF_TANK_LITERS,
     DOMAIN,
     FUEL_TYPES,
 )
@@ -33,7 +34,7 @@ DEFAULT_FUEL_TYPE = FUEL_TYPES[0]
 #: Older installs may still carry values under these keys in ``entry.options``,
 #: which would shadow the data through ``vehicle_settings()``; the reconfigure
 #: step strips them.
-_VEHICLE_KEYS = (CONF_FUEL_TYPE, CONF_ENGINE, CONF_ODOMETER)
+_VEHICLE_KEYS = (CONF_FUEL_TYPE, CONF_ENGINE, CONF_ODOMETER, CONF_TANK_LITERS)
 
 
 def vehicle_schema() -> vol.Schema:
@@ -56,6 +57,9 @@ def vehicle_schema() -> vol.Schema:
             vol.Optional(CONF_ENGINE): TextSelector(),
             vol.Optional(CONF_ODOMETER): NumberSelector(
                 NumberSelectorConfig(min=0, step="any", unit_of_measurement="km")
+            ),
+            vol.Optional(CONF_TANK_LITERS): NumberSelector(
+                NumberSelectorConfig(min=0, step="any", unit_of_measurement="L")
             ),
         }
     )

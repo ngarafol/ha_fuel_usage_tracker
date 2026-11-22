@@ -17,6 +17,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_ODOMETER,
+    CONF_TANK_LITERS,
     DOMAIN,
     ROLLING_MONTHS,
     STORAGE_VERSION,
@@ -128,6 +129,7 @@ class FuelUsage:
 
     fillups: list[FillUp] = field(default_factory=list)
     baseline_odometer: float | None = None
+    tank_liters: float | None = None
 
     @property
     def fill_count(self) -> int:
@@ -253,9 +255,32 @@ class FuelUsage:
         """
         return round(sum((leg[2] for leg in self._legs()), 0.0), 2)
 
+    def fillup_rows(self, limit: int | None = None) -> list[dict]:
+        """Fill-ups newest first, each annotated with the leg it closed.
+
+        A full fill-up with an odometer closing a measured leg carries
+        ``leg_liters``, ``leg_distance``, ``leg_cost`` and ``leg_consumption``
+        (L/100 km) — the fuel that leg burned, which includes partial fill-ups
+        since the previous full tank. Partial fill-ups and the first full tank
+        carry no leg keys. ``limit`` keeps only the newest N fill-ups.
+        """
+        legs = {index: (liters, distance, cost) for index, liters, distance, cost in self._leg_rows()}
+        start = max(0, len(self.fillups) - limit) if limit is not None else 0
+        rows: list[dict] = []
+        for index in range(len(self.fillups) - 1, start - 1, -1):
+            row = self.fillups[index].as_dict()
+            if (leg := legs.get(index)) is not None:
+                liters, distance, cost = leg
+                row["leg_liters"] = round(liters, 3)
+                row["leg_distance"] = round(distance, 1)
+                row["leg_cost"] = round(cost, 2)
+                row["leg_consumption"] = round(liters / distance * 100, 2)
+            rows.append(row)
+        return rows
+
     @property
-    def cost_per_km(self) -> float | None:
-        """Fuel cost per kilometre of the measured legs.
+    def cost_per_100km(self) -> float | None:
+        """Fuel cost per 100 km of the measured legs.
 
         Only fuel that was actually burned is counted: the money paid for the
         latest fill-up buys fuel for the *next* leg, so it is excluded until the
@@ -265,7 +290,20 @@ class FuelUsage:
         distance = sum(leg[1] for leg in legs)
         if not distance:
             return None
-        return round(sum(leg[2] for leg in legs) / distance, 4)
+        return round(sum(leg[2] for leg in legs) / distance * 100, 2)
+
+    @property
+    def range_full_tank(self) -> float | None:
+        """Kilometres a full tank lasts at the average consumption.
+
+        Needs the optional tank capacity; ``None`` when either it or a measured
+        leg is missing. This is the range of a *full* tank, not a live estimate —
+        the tank level between fill-ups is unknown.
+        """
+        consumption = self.avg_consumption
+        if not self.tank_liters or not consumption:
+            return None
+        return round(self.tank_liters / consumption * 100, 0)
 
     def _periods(self, key_of: Callable[[datetime], str]) -> dict[str, PeriodUsage]:
         """Aggregate fill-ups and their closed legs into periods.
@@ -392,9 +430,11 @@ class FuelUsageCoordinator(DataUpdateCoordinator[FuelUsage]):
         self.store = FuelUsageStore(hass, entry.entry_id)
 
     def _usage(self) -> FuelUsage:
+        settings = vehicle_settings(self.entry)
         return FuelUsage(
             fillups=list(self.store.fillups),
-            baseline_odometer=to_float(vehicle_settings(self.entry).get(CONF_ODOMETER)),
+            baseline_odometer=to_float(settings.get(CONF_ODOMETER)),
+            tank_liters=to_float(settings.get(CONF_TANK_LITERS)),
         )
 
     async def _async_update_data(self) -> FuelUsage:

@@ -17,6 +17,7 @@ from tests.helpers import (
     FILLUP_DATE_MID,
     add_fillup,
     call_service,
+    make_entry,
     sensor_state,
     sensor_value,
     setup_vehicle,
@@ -74,6 +75,32 @@ async def test_consumed_sensors_are_zero_until_a_leg_closes(hass):
     assert sensor_value(hass, const.SENSOR_CONSUMED_LITERS) == 0.0
     assert sensor_value(hass, const.SENSOR_CONSUMED_COST) == 0.0
     assert sensor_value(hass, const.SENSOR_TOTAL_LITERS) == 40.0
+
+
+async def test_cost_per_100km_and_range_sensors_report_the_new_metrics(hass):
+    entry = await setup_vehicle(
+        hass, make_entry(**{const.CONF_TANK_LITERS: 55.0})
+    )
+
+    await add_fillup(
+        hass, entry.entry_id, 40, 60.0, odometer=BASE_ODOMETER, date=FILLUP_DATE_1
+    )
+    await add_fillup(
+        hass, entry.entry_id, 45, 70.0, odometer=BASE_ODOMETER + 500, date=FILLUP_DATE_2
+    )
+
+    assert sensor_value(hass, const.SENSOR_COST_PER_100KM) == 14.0
+    assert sensor_value(hass, const.SENSOR_RANGE_FULL_TANK) == 611.0
+
+
+async def test_range_sensor_ignores_an_unusable_tank_capacity(hass):
+    entry = await setup_vehicle(
+        hass, make_entry(**{const.CONF_TANK_LITERS: "not a number"})
+    )
+
+    await two_full_fillups(hass, entry.entry_id)
+
+    assert sensor_state(hass, const.SENSOR_RANGE_FULL_TANK).state == "unknown"
 
 
 async def test_partial_fill_is_folded_into_the_leg(hass):
@@ -227,14 +254,29 @@ async def test_last_fill_sensor_exposes_the_fillup_history(hass):
     assert attributes["full"] is True
     assert attributes["notes"] == "newest"
 
-    # The history is the plain FillUp.as_dict() shape, newest first.
-    assert isinstance(history, list)
-    assert all(isinstance(item, dict) for item in history)
-    assert set(history[0]) == set(
+    # The history is the FillUp.as_dict() shape, newest first, plus the leg keys
+    # on the fill-up that closed a measured leg.
+    plain = set(
         FillUp(
             id="id", date=datetime(2026, 1, 1, tzinfo=UTC), liters=1.0, price=1.0
         ).as_dict()
     )
+    assert isinstance(history, list)
+    assert all(isinstance(item, dict) for item in history)
+    # The newest fill closed the 20 L + 45 L leg over 500 km.
+    assert set(history[0]) == plain | {
+        "leg_liters",
+        "leg_distance",
+        "leg_cost",
+        "leg_consumption",
+    }
+    assert history[0]["leg_liters"] == 65.0
+    assert history[0]["leg_distance"] == 500.0
+    assert history[0]["leg_cost"] == 92.5
+    assert history[0]["leg_consumption"] == 13.0
+    # The partial fill and the first full tank closed no leg of their own.
+    assert set(history[1]) == plain
+    assert set(history[2]) == plain
     assert [item["liters"] for item in history] == [45.0, 20.0, 40.0]
     assert [item["station"] for item in history] == ["INA", "OMV", "Shell"]
     assert history[0]["full"] is True

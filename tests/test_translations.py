@@ -77,3 +77,11 @@ def test_the_consumed_sensor_keys_are_translated_everywhere():
         names = _load(name)["entity"]["sensor"]
         for key in (const.SENSOR_CONSUMED_LITERS, const.SENSOR_CONSUMED_COST):
             assert names.get(key, {}).get("name"), f"{name}: entity.sensor.{key}.name"
+
+
+def test_the_per_100km_and_range_keys_are_translated_everywhere():
+    for name in TRANSLATIONS:
+        names = _load(name)["entity"]["sensor"]
+        for key in (const.SENSOR_COST_PER_100KM, const.SENSOR_RANGE_FULL_TANK):
+            assert names.get(key, {}).get("name"), f"{name}: entity.sensor.{key}.name"
+        assert "cost_per_km" not in names, name

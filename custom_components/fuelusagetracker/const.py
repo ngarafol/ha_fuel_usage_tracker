@@ -18,6 +18,7 @@ CONF_NAME: Final = "name"
 CONF_FUEL_TYPE: Final = "fuel_type"
 CONF_ENGINE: Final = "engine"
 CONF_ODOMETER: Final = "odometer"
+CONF_TANK_LITERS: Final = "tank_liters"
 
 # Service field keys.
 CONF_VEHICLE: Final = "vehicle"
@@ -61,7 +62,8 @@ SENSOR_LAST_FILL_LITERS: Final = "last_fill_liters"
 SENSOR_LAST_PRICE_PER_LITER: Final = "last_price_per_liter"
 SENSOR_LAST_CONSUMPTION: Final = "last_consumption"
 SENSOR_AVG_CONSUMPTION: Final = "avg_consumption"
-SENSOR_COST_PER_KM: Final = "cost_per_km"
+SENSOR_COST_PER_100KM: Final = "cost_per_100km"
+SENSOR_RANGE_FULL_TANK: Final = "range_full_tank"
 SENSOR_FILL_COUNT: Final = "fill_count"
 
 # Current-month sensors. Together with the ``months`` history attribute on

@@ -15,13 +15,19 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.fuelusagetracker import config_flow, const
 from tests.helpers import DEFAULT_VEHICLE, make_entry, sensor_state, setup_vehicle
 
-VEHICLE_KEYS = (const.CONF_FUEL_TYPE, const.CONF_ENGINE, const.CONF_ODOMETER)
+VEHICLE_KEYS = (
+    const.CONF_FUEL_TYPE,
+    const.CONF_ENGINE,
+    const.CONF_ODOMETER,
+    const.CONF_TANK_LITERS,
+)
 
 #: What the old Configure form left behind: values that used to shadow entry.data.
 STALE_OPTIONS = {
     const.CONF_FUEL_TYPE: "lpg",
     const.CONF_ENGINE: "Stale 1.0",
     const.CONF_ODOMETER: 99999.0,
+    const.CONF_TANK_LITERS: 40.0,
 }
 
 
@@ -158,6 +164,7 @@ async def test_reconfigure_replaces_a_stale_option_value(hass):
             const.CONF_FUEL_TYPE: "petrol",
             const.CONF_ENGINE: "2.0 TDI",
             const.CONF_ODOMETER: 12000.0,
+            const.CONF_TANK_LITERS: 55.0,
         },
     )
 
@@ -166,6 +173,7 @@ async def test_reconfigure_replaces_a_stale_option_value(hass):
 
     assert entry.data[const.CONF_ENGINE] == "2.0 TDI"
     assert entry.data[const.CONF_FUEL_TYPE] == "petrol"
+    assert float(entry.data[const.CONF_TANK_LITERS]) == 55.0
     for key in VEHICLE_KEYS:
         assert key not in entry.options
     assert (
@@ -244,3 +252,55 @@ async def test_reconfigure_replaces_the_options_flow(hass):
     assert hasattr(config_flow.FuelUsageConfigFlow, "async_step_reconfigure")
     assert config_flow.FuelUsageConfigFlow.async_supports_options_flow(entry) is False
     assert not hasattr(config_flow, "FuelUsageOptionsFlow")
+
+
+async def test_user_flow_stores_the_tank_capacity(hass):
+    result = await hass.config_entries.flow.async_init(
+        const.DOMAIN, context={"source": "user"}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**DEFAULT_VEHICLE, const.CONF_TANK_LITERS: 55.0}
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert float(result["result"].data[const.CONF_TANK_LITERS]) == 55.0
+
+
+def test_an_empty_tank_capacity_is_dropped_from_the_entry_data():
+    for empty in ("", None):
+        data = config_flow._vehicle_data(
+            {**DEFAULT_VEHICLE, const.CONF_TANK_LITERS: empty}
+        )
+        assert const.CONF_TANK_LITERS not in data
+
+
+async def test_reconfigure_writes_and_then_clears_the_tank_capacity(hass):
+    entry = await setup_vehicle(hass)
+
+    result = await _reconfigure_form(hass, entry)
+    result = await _submit(
+        hass,
+        result,
+        {
+            const.CONF_NAME: entry.title,
+            const.CONF_FUEL_TYPE: DEFAULT_VEHICLE[const.CONF_FUEL_TYPE],
+            const.CONF_TANK_LITERS: 55.0,
+        },
+    )
+    assert result["reason"] == "reconfigure_successful"
+    await hass.async_block_till_done()
+    assert float(entry.data[const.CONF_TANK_LITERS]) == 55.0
+
+    # Submitting the wizard without a capacity clears the stored one.
+    result = await _reconfigure_form(hass, entry)
+    result = await _submit(
+        hass,
+        result,
+        {
+            const.CONF_NAME: entry.title,
+            const.CONF_FUEL_TYPE: DEFAULT_VEHICLE[const.CONF_FUEL_TYPE],
+        },
+    )
+    assert result["reason"] == "reconfigure_successful"
+    await hass.async_block_till_done()
+    assert const.CONF_TANK_LITERS not in entry.data

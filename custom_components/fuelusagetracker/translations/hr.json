@@ -9,7 +9,8 @@
           "name": "Naziv vozila",
           "fuel_type": "Vrsta goriva",
           "engine": "Motor",
-          "odometer": "Početna kilometraža"
+          "odometer": "Početna kilometraža",
+          "tank_liters": "Kapacitet rezervoara"
         },
         "data_description": {
           "name": "Koristi se i kao naziv unosa te kao dio naziva uređaja.",
@@ -24,7 +25,8 @@
           "name": "Naziv vozila",
           "fuel_type": "Vrsta goriva",
           "engine": "Motor",
-          "odometer": "Početna kilometraža"
+          "odometer": "Početna kilometraža",
+          "tank_liters": "Kapacitet rezervoara"
         },
         "data_description": {
           "name": "Koristi se i kao naziv unosa te kao dio naziva uređaja.",
@@ -69,8 +71,8 @@
       "consumed_liters": {
         "name": "Potrošene litre"
       },
-      "cost_per_km": {
-        "name": "Trošak po kilometru"
+      "cost_per_100km": {
+        "name": "Trošak na 100 km"
       },
       "distance_to_last_fill": {
         "name": "Prijeđeno do zadnjeg punjenja"
@@ -110,6 +112,9 @@
       },
       "odometer": {
         "name": "Kilometraža"
+      },
+      "range_full_tank": {
+        "name": "Domet s punim rezervoarom"
       },
       "rolling_avg_consumption": {
         "name": "Prosječna potrošnja zadnjih 12 mjeseci"

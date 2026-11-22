@@ -9,7 +9,8 @@
           "name": "Vehicle name",
           "fuel_type": "Fuel type",
           "engine": "Engine",
-          "odometer": "Baseline odometer"
+          "odometer": "Baseline odometer",
+          "tank_liters": "Tank capacity"
         },
         "data_description": {
           "name": "Also used as the config entry title and as part of the device name.",
@@ -24,7 +25,8 @@
           "name": "Vehicle name",
           "fuel_type": "Fuel type",
           "engine": "Engine",
-          "odometer": "Baseline odometer"
+          "odometer": "Baseline odometer",
+          "tank_liters": "Tank capacity"
         },
         "data_description": {
           "name": "Also used as the config entry title and as part of the device name.",
@@ -69,8 +71,8 @@
       "consumed_liters": {
         "name": "Consumed litres"
       },
-      "cost_per_km": {
-        "name": "Cost per km"
+      "cost_per_100km": {
+        "name": "Cost per 100 km"
       },
       "distance_to_last_fill": {
         "name": "Distance to last fill"
@@ -110,6 +112,9 @@
       },
       "odometer": {
         "name": "Odometer"
+      },
+      "range_full_tank": {
+        "name": "Range on a full tank"
       },
       "rolling_avg_consumption": {
         "name": "Average consumption last 12 months"
