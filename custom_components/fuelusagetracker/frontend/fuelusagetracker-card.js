@@ -97,7 +97,14 @@ const STYLES = `
   .hero.no-image { background-image: linear-gradient(rgba(var(--rgb-primary-color), .18), rgba(var(--rgb-primary-color), .04)); }
   .hero-art { position: absolute; right: 10px; bottom: 6px; width: 44%; max-width: 230px; height: auto; color: var(--primary-text-color); fill: currentColor; opacity: .18; pointer-events: none; }
   .hero:not(.no-image) .hero-art { display: none; }
-  .hero select { position: absolute; top: 10px; right: 12px; z-index: 2; width: auto; max-width: 60%; }
+  /* A native <select> keeps its own chrome in some engines, so this aims at a
+     theme-coloured pill that looks deliberate either way. */
+  .hero select { position: absolute; top: 10px; right: 10px; z-index: 2; width: auto; max-width: 46%;
+    padding: 2px 8px; border-radius: 999px; border: 1px solid var(--divider-color);
+    background: var(--card-background-color); color: var(--primary-text-color);
+    font: inherit; font-size: .8rem; text-overflow: ellipsis; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
+  .hero select option { color: #111; background: #fff; }
+  .hero.no-image select { background: var(--secondary-background-color); color: var(--primary-text-color); border-color: rgba(var(--rgb-primary-text-color), .2); }
   .hero-body { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; width: 100%; padding: 16px; }
   .hero-text { min-width: 0; }
   .hero-name { font-size: 1.55rem; font-weight: 600; line-height: 1.15; color: #fff; overflow-wrap: anywhere; }
@@ -259,8 +266,21 @@ class FuelUsageTrackerCard extends HTMLElement {
     return this._discover().find((vehicle) => vehicle.id === this._vehId);
   }
 
+  _savedVehicle() {
+    try {
+      return window.localStorage.getItem("fuelusagetracker.vehicle");
+    } catch (err) {
+      return null;
+    }
+  }
+
   _currentVehicle(vehicles) {
     const config = this._config || {};
+    const saved = this._selected || this._savedVehicle();
+    if (saved) {
+      const match = vehicles.find((vehicle) => vehicle.id === saved);
+      if (match) return match;
+    }
     if (this._selected) {
       const selected = vehicles.find((vehicle) => vehicle.id === this._selected);
       if (selected) return selected;
@@ -936,6 +956,11 @@ class FuelUsageTrackerCard extends HTMLElement {
 
   _selectVehicle(id) {
     this._selected = id;
+    try {
+      window.localStorage.setItem("fuelusagetracker.vehicle", id);
+    } catch (err) {
+      // Private mode / blocked storage: the picker just does not persist.
+    }
     this._render();
   }
 

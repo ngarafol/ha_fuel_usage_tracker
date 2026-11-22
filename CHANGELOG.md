@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.10.1] - 2026-11-22
+
+### Changed
+
+* The vehicle picker in the hero is a compact themed pill (it used to be a bare
+  native select) and the card **remembers the vehicle you picked** — with two
+  cars, a reload no longer jumps back to the first one.
+* The picker only appears when a vehicle has two or more entries; a single-car
+  dashboard stays clean.
+
+### Verified
+
+* Two-vehicle fixture: the picker lists both cars, switching swaps the hero name
+  and every figure (Passat 6,45 → Peugeot 8,84 L/100km), no overlap with the hero
+  text at 528, 560 and 1250 px, no overflow.
+
 ## [0.10.0] - 2026-11-22
 
 ### Added
@@ -390,6 +406,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.10.1]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.10.1
 [0.10.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.10.0
 [0.9.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.9.0
 [0.8.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.8.0
