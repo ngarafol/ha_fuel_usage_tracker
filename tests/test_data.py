@@ -93,3 +93,77 @@ def test_consumption_is_unknown_without_odometer_readings():
     assert usage.odometer is None
     assert usage.total_distance is None
     assert usage.total_liters == 85.0
+
+
+def test_cost_per_km_counts_burned_fuel_not_total_spend():
+    """The opening tank is the baseline; only the closing fill was burned."""
+    usage = FuelUsage(
+        fillups=[fill(40, 10000.0, price=60.0), fill(45, 10500.0, price=70.0)],
+        baseline_odometer=10000.0,
+    )
+
+    # 70 EUR burned over 500 km. Total spend over the same distance would be 0.26.
+    assert usage.cost_per_km == 0.14
+    assert usage.total_cost == 130.0
+    assert usage.avg_consumption == 9.0
+    assert usage.last_consumption == 9.0
+
+
+def test_cost_per_km_ignores_the_fuel_bought_but_not_yet_burned():
+    usage = FuelUsage(
+        fillups=[
+            fill(40, 10000.0, price=60.0),
+            fill(45, 10500.0, price=70.0),
+            fill(10, 10600.0, full=False, price=15.0),
+        ],
+        baseline_odometer=10000.0,
+    )
+
+    # The trailing partial fill buys fuel for the next leg: not in the rate yet.
+    assert usage.cost_per_km == 0.14
+    assert usage.total_cost == 145.0
+
+
+def test_cost_per_km_includes_a_partial_fill_inside_the_leg():
+    usage = FuelUsage(
+        fillups=[
+            fill(40, 10000.0, price=60.0),
+            fill(10, 10250.0, full=False, price=15.0),
+            fill(45, 10500.0, price=70.0),
+        ],
+        baseline_odometer=10000.0,
+    )
+
+    # 15 + 70 = 85 EUR burned over the 500 km leg.
+    assert usage.cost_per_km == 0.17
+    assert usage.avg_consumption == 11.0
+    assert usage.last_consumption == 11.0
+
+
+def test_cost_per_km_is_unknown_without_a_measured_leg():
+    single = FuelUsage(fillups=[fill(40, 10000.0, price=60.0)])
+    unmeasured = FuelUsage(
+        fillups=[fill(40, None, price=60.0), fill(45, None, price=70.0)]
+    )
+
+    assert single.cost_per_km is None
+    assert unmeasured.cost_per_km is None
+    # Purchases are still reported, even when no rate can be computed.
+    assert single.total_cost == 60.0
+    assert single.total_liters == 40.0
+    assert unmeasured.total_cost == 130.0
+    assert unmeasured.total_liters == 85.0
+
+
+def test_last_leg_distance_is_the_most_recent_measured_leg():
+    two = FuelUsage(
+        fillups=[fill(40, 10000.0), fill(45, 10500.0)], baseline_odometer=10000.0
+    )
+    three = FuelUsage(
+        fillups=[fill(40, 10000.0), fill(45, 10500.0), fill(40, 10800.0)],
+        baseline_odometer=10000.0,
+    )
+
+    assert two.last_leg_distance == 500.0
+    assert three.last_leg_distance == 300.0
+    assert FuelUsage(fillups=[fill(40, 10000.0)]).last_leg_distance is None

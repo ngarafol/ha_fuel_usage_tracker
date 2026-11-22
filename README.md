@@ -37,7 +37,7 @@ Requires Home Assistant 2026.2 or newer (tested with 2026.2.3, Python 3.13).
 | Name | Vehicle name, e.g. `Passat`. Used in the device name and in every entity id. |
 | Fuel type | Petrol, diesel, LPG, CNG, hybrid, electric, other. |
 | Engine | Optional free text, e.g. `1.6 TDI`. |
-| Odometer | Optional baseline odometer in km; makes "km since last fill-up" meaningful before the first fill-up. |
+| Odometer | Optional odometer in km at the start of tracking. It is only used by the `odometer` sensor (which never reports less than it) — distance and consumption come from the fill-ups. |
 
 Add the integration again for every additional vehicle. Vehicle settings are
 editable afterwards — open the integration entry's ⋮ menu and pick
@@ -83,7 +83,7 @@ For a vehicle named `Passat` (device `fuelusagetracker Passat`):
 | Entity id | Meaning |
 | --- | --- |
 | `sensor.fuelusagetracker_passat_odometer` | Last known odometer (km) |
-| `sensor.fuelusagetracker_passat_distance_since_last_fill_up` | km driven since the last fill-up with an odometer |
+| `sensor.fuelusagetracker_passat_distance_to_last_fill` | km driven until the latest fill-up (the last measured tank) |
 | `sensor.fuelusagetracker_passat_total_distance` | km between the first and the last odometer reading |
 | `sensor.fuelusagetracker_passat_total_liters` | Total litres refuelled |
 | `sensor.fuelusagetracker_passat_total_cost` | Total fuel cost |
@@ -94,7 +94,7 @@ For a vehicle named `Passat` (device `fuelusagetracker Passat`):
 | `sensor.fuelusagetracker_passat_last_price_per_liter` | Price per litre of the newest fill-up |
 | `sensor.fuelusagetracker_passat_last_consumption` | L/100 km, most recent measured leg |
 | `sensor.fuelusagetracker_passat_average_consumption` | L/100 km, full-to-full average |
-| `sensor.fuelusagetracker_passat_cost_per_km` | Fuel cost per km |
+| `sensor.fuelusagetracker_passat_cost_per_km` | Fuel cost per km of fuel that was actually burned |
 | `sensor.fuelusagetracker_passat_fill_up_count` | Number of recorded fill-ups |
 | `sensor.fuelusagetracker_passat_{distance,litres,cost,average_consumption,fill_ups}_this_month` | this month: km, litres bought, fuel cost, L/100 km, fill-ups |
 | `sensor.fuelusagetracker_passat_{distance,litres,cost,average_consumption}_last_12_months` | trailing 12 months (never resets on 1 January; the `window` attribute carries the exact range) |
@@ -119,6 +119,43 @@ they reset every month, so putting them into long-term statistics would corrupt
 the sum. Every entity carries `key`, `vehicle`, `vehicle_name`, `fuel_type` and
 `engine` attributes — the card and your automations can find things without
 hard-coding entity ids.
+
+## How the numbers are calculated
+
+The integration uses the classic **tank-to-tank** method (fill to the brim, drive,
+fill to the brim again), so every number describes fuel that was really burned:
+
+* **The first fill-up is the starting tank.** You bought those litres and spent
+  that money — they count in `total_cost` and `total_liters` — but no distance is
+  attached to them, so they never enter consumption or cost per km.
+* **Every later full fill-up closes a leg.** Kilometres = odometer difference.
+  Litres burned = everything you added since the previous full tank, partial
+  fill-ups included. `last_consumption` / `avg_consumption` = litres per 100 km
+  over that leg.
+* **Cost per km follows the same rule.** It is the money spent on the fuel that
+  leg burned (the closing fill-up plus any partials) divided by the leg's
+  kilometres. The newest fill-up buys fuel for the *next* leg, so it is not in
+  `cost_per_km` until the next full tank closes that leg — it is in `total_cost`
+  because you already paid for it.
+* `total_cost`, `total_liters`, `last_fill_*` and the period `cost` are
+  **purchases** (what left your wallet); `avg_consumption`, `last_consumption`,
+  `cost_per_km` and the period `avg_consumption` are **measurements** (what was
+  burned). Both are honest, they just answer different questions.
+
+Example: 40 L for 60 € at 10 000 km, then 45 L for 70 € at 10 500 km.
+
+| | value |
+| --- | --- |
+| Total spent | 130 € |
+| Total litres | 85 L |
+| Measured leg | 500 km, 45 L burned |
+| Consumption | 9.0 L/100 km (45 L per 500 km) |
+| Cost of that driving | 70 € → **0.14 €/km** |
+| What the old "total ÷ distance" formula would have said | 0.26 €/km (wrong: counts fuel that was still in the tank) |
+
+There is deliberately no "km since last fill" sensor: odometers are entered at
+fill-ups, so it would always read 0. `distance_to_last_fill` shows how far you
+drove until the latest fill-up instead.
 
 ## Period statistics: month, year, rolling 12 months
 

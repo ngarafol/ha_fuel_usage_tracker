@@ -66,11 +66,11 @@
       "cost_per_km": {
         "name": "Cost per km"
       },
+      "distance_to_last_fill": {
+        "name": "Distance to last fill"
+      },
       "fill_count": {
         "name": "Fill-up count"
-      },
-      "km_since_last_fill": {
-        "name": "Distance since last fill-up"
       },
       "last_consumption": {
         "name": "Last consumption"

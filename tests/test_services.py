@@ -36,7 +36,21 @@ async def test_add_fillup_computes_statistics(hass):
     assert sensor_value(hass, const.SENSOR_AVG_CONSUMPTION) == 9.0
     assert sensor_value(hass, const.SENSOR_LAST_CONSUMPTION) == 9.0
     assert sensor_value(hass, const.SENSOR_TOTAL_DISTANCE) == 500.0
-    assert sensor_value(hass, const.SENSOR_KM_SINCE_LAST_FILL) == 0.0
+    assert sensor_value(hass, const.SENSOR_DISTANCE_TO_LAST_FILL) == 500.0
+
+
+async def test_distance_to_last_fill_is_unknown_until_a_leg_closes(hass):
+    entry = await setup_vehicle(hass)
+
+    await add_fillup(
+        hass, entry.entry_id, 40, 60.0, odometer=BASE_ODOMETER, date=FILLUP_DATE_1
+    )
+    assert sensor_state(hass, const.SENSOR_DISTANCE_TO_LAST_FILL).state == "unknown"
+
+    await add_fillup(
+        hass, entry.entry_id, 45, 70.0, odometer=BASE_ODOMETER + 500, date=FILLUP_DATE_2
+    )
+    assert sensor_value(hass, const.SENSOR_DISTANCE_TO_LAST_FILL) == 500.0
 
 
 async def test_partial_fill_is_folded_into_the_leg(hass):

@@ -174,26 +174,20 @@ class FuelUsage:
             return None
         return round(readings[-1] - readings[0], 1)
 
-    @property
-    def km_since_last_fill(self) -> float | None:
-        """Distance covered since the last fill-up that recorded an odometer value."""
-        last_with_odometer = next(
-            (fill for fill in reversed(self.fillups) if fill.odometer is not None), None
-        )
-        odometer = self.odometer
-        if last_with_odometer is None or odometer is None:
-            return None
-        return round(odometer - last_with_odometer.odometer, 1)
-
-    def _leg_rows(self) -> list[tuple[int, float, float]]:
-        """Tank-to-tank legs as (closing fill-up index, liters, distance) rows.
+    def _leg_rows(self) -> list[tuple[int, float, float, float]]:
+        """Tank-to-tank legs as (closing fill-up index, liters, distance, cost) rows.
 
         Tank-to-tank method: a leg ends at a full tank fill-up with an odometer
         reading and contains every litre added since the previous full tank,
         including partial fill-ups in between. A full tank without an odometer
         reading breaks the chain, because the distance of that leg is unknown.
+
+        ``cost`` is the money spent on the fuel that leg actually burned: the
+        closing fill-up plus every partial fill-up since the previous full tank.
+        The first full tank is the baseline (the tank the car arrived with) and is
+        never part of a leg, which is why total spend and measured cost differ.
         """
-        rows: list[tuple[int, float, float]] = []
+        rows: list[tuple[int, float, float, float]] = []
         previous: tuple[int, float] | None = None
         for index, fill in enumerate(self.fillups):
             if not fill.full:
@@ -205,14 +199,16 @@ class FuelUsage:
                 prev_index, prev_odometer = previous
                 distance = fill.odometer - prev_odometer
                 if distance > 0:
-                    liters = sum(item.liters for item in self.fillups[prev_index + 1 : index + 1])
-                    rows.append((index, liters, distance))
+                    leg = self.fillups[prev_index + 1 : index + 1]
+                    liters = sum(item.liters for item in leg)
+                    cost = sum(item.price for item in leg)
+                    rows.append((index, liters, distance, cost))
             previous = (index, fill.odometer)
         return rows
 
-    def _legs(self) -> list[tuple[float, float]]:
-        """Full-to-full legs as (liters, distance) pairs."""
-        return [(liters, distance) for _, liters, distance in self._leg_rows()]
+    def _legs(self) -> list[tuple[float, float, float]]:
+        """Full-to-full legs as (liters, distance, cost) triples."""
+        return [(liters, distance, cost) for _, liters, distance, cost in self._leg_rows()]
 
     @property
     def avg_consumption(self) -> float | None:
@@ -229,16 +225,28 @@ class FuelUsage:
         legs = self._legs()
         if not legs:
             return None
-        liters, distance = legs[-1]
+        liters, distance, _ = legs[-1]
         return round(liters / distance * 100, 2)
 
     @property
+    def last_leg_distance(self) -> float | None:
+        """Kilometres driven until the most recent fill-up."""
+        legs = self._legs()
+        return round(legs[-1][1], 1) if legs else None
+
+    @property
     def cost_per_km(self) -> float | None:
-        """Fuel cost per kilometre over the measured distance."""
-        distance = sum(leg[1] for leg in self._legs())
+        """Fuel cost per kilometre of the measured legs.
+
+        Only fuel that was actually burned is counted: the money paid for the
+        latest fill-up buys fuel for the *next* leg, so it is excluded until the
+        next full tank closes that leg.
+        """
+        legs = self._legs()
+        distance = sum(leg[1] for leg in legs)
         if not distance:
             return None
-        return round(self.total_cost / distance, 4)
+        return round(sum(leg[2] for leg in legs) / distance, 4)
 
     def _periods(self, key_of: Callable[[datetime], str]) -> dict[str, PeriodUsage]:
         """Aggregate fill-ups and their closed legs into periods.
@@ -249,7 +257,7 @@ class FuelUsage:
         period; litres, cost and the fill-up count are what was purchased.
         """
         periods: dict[str, PeriodUsage] = {}
-        legs = {index: (liters, distance) for index, liters, distance in self._leg_rows()}
+        legs = {index: (liters, distance) for index, liters, distance, _ in self._leg_rows()}
         for index, fill in enumerate(self.fillups):
             key = key_of(dt_util.as_local(fill.date))
             period = periods.setdefault(key, PeriodUsage(key=key))

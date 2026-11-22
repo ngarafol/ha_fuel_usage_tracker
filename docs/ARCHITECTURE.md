@@ -53,10 +53,23 @@ the wizard but wrote to a different dict.
 
 `data.FuelUsage` exposes the computed values used by sensors:
 `fill_count`, `total_liters`, `total_cost`, `avg_price_per_liter`, `last_fill`,
-`last_price_per_liter`, `odometer`, `first_odometer`, `total_distance`,
-`km_since_last_fill`, `avg_consumption`, `last_consumption`, `cost_per_km`.
+`last_price_per_liter`, `odometer`, `total_distance`, `last_leg_distance`,
+`avg_consumption`, `last_consumption`, `cost_per_km`.
 Each returns `None` when it cannot be computed (sensor state must then be
 `unknown`).
+
+`_leg_rows()` returns `(closing fill-up index, liters, distance, cost)`; a leg's
+`cost` is the money spent on the fuel that leg **burned** — the closing fill-up
+plus every partial fill-up since the previous full tank. The first full tank is
+the baseline (the tank the car arrived with) and never belongs to a leg, so its
+spend is in `total_cost` but not in `cost_per_km`. `cost_per_km` is
+`sum(leg costs) / sum(leg distances)`; the latest fill-up's fuel buys the *next*
+leg, so it is excluded until the next full tank closes it. `total_cost` and
+`total_liters` stay purchase-based (all money spent / all litres bought), and
+`avg_price_per_liter` is the average purchase price — not the cost of driving.
+`last_leg_distance` is the last measured leg's distance; there is deliberately no
+"km since last fill" value, because odometers are entered at fill-ups, so it
+would always be 0.
 
 Persistence: one HA `Store` file per entry (`fuelusagetracker.<entry_id>`),
 version `1`, shape `{"fillups": [<fill-up dict>]}`.
@@ -98,7 +111,7 @@ Sensor key table (keys are defined in `const.py`, names come from
 | key | device_class | state_class | unit | value |
 | --- | --- | --- | --- | --- |
 | `odometer` | distance | total_increasing | km | `usage.odometer` |
-| `km_since_last_fill` | distance | measurement | km | `usage.km_since_last_fill` |
+| `distance_to_last_fill` | distance | measurement | km | `usage.last_leg_distance` |
 | `total_distance` | distance | total_increasing | km | `usage.total_distance` |
 | `total_liters` | – | total | L | `usage.total_liters` |
 | `total_cost` | monetary | total | currency | `usage.total_cost` |

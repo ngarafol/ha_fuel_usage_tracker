@@ -12,7 +12,7 @@ from tests.helpers import DEFAULT_VEHICLE, SENSOR_KEYS, setup_vehicle
 #: `None` means the sensor is unitless. Guards how units are derived.
 SENSOR_UNITS = {
     const.SENSOR_ODOMETER: "km",
-    const.SENSOR_KM_SINCE_LAST_FILL: "km",
+    const.SENSOR_DISTANCE_TO_LAST_FILL: "km",
     const.SENSOR_TOTAL_DISTANCE: "km",
     const.SENSOR_TOTAL_LITERS: "L",
     const.SENSOR_TOTAL_COST: "EUR",
@@ -100,3 +100,17 @@ async def test_every_sensor_carries_its_unique_id(hass):
     for entity in entities:
         key = hass.states.get(entity.entity_id).attributes["key"]
         assert entity.unique_id == f"{entry.entry_id}_{key}"
+
+
+async def test_distance_to_last_fill_replaced_km_since_last_fill(hass):
+    entry = await setup_vehicle(hass)
+
+    by_key = {
+        hass.states.get(entity.entity_id).attributes["key"]: entity
+        for entity in _registered_entities(hass, entry)
+    }
+
+    assert "km_since_last_fill" not in by_key
+    distance = by_key[const.SENSOR_DISTANCE_TO_LAST_FILL]
+    assert distance.unit_of_measurement == "km"
+    assert distance.capabilities["state_class"] == "measurement"

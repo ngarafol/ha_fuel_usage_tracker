@@ -33,8 +33,8 @@ from .const import (
     SENSOR_AVG_CONSUMPTION,
     SENSOR_AVG_PRICE_PER_LITER,
     SENSOR_COST_PER_KM,
+    SENSOR_DISTANCE_TO_LAST_FILL,
     SENSOR_FILL_COUNT,
-    SENSOR_KM_SINCE_LAST_FILL,
     SENSOR_LAST_CONSUMPTION,
     SENSOR_LAST_FILL,
     SENSOR_LAST_FILL_COST,
@@ -103,11 +103,11 @@ SENSOR_DESCRIPTIONS: Final[tuple[FuelUsageSensorDescription, ...]] = (
         value_fn=lambda usage: usage.odometer,
     ),
     FuelUsageSensorDescription(
-        key=SENSOR_KM_SINCE_LAST_FILL,
+        key=SENSOR_DISTANCE_TO_LAST_FILL,
         device_class=SensorDeviceClass.DISTANCE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="km",
-        value_fn=lambda usage: usage.km_since_last_fill,
+        value_fn=lambda usage: usage.last_leg_distance,
     ),
     FuelUsageSensorDescription(
         key=SENSOR_TOTAL_DISTANCE,

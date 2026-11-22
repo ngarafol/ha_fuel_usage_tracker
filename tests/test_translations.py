@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from custom_components.fuelusagetracker import const
 from tests.helpers import SENSOR_KEYS
 
 COMPONENT_DIR = (
@@ -62,3 +63,10 @@ def test_the_options_flow_translation_block_is_gone():
     """The reconfigure wizard replaced the options flow, block and all."""
     for name in TRANSLATIONS:
         assert "options" not in _load(name), name
+
+
+def test_the_swapped_sensor_key_is_translated_everywhere():
+    for name in TRANSLATIONS:
+        names = _load(name)["entity"]["sensor"]
+        assert names.get(const.SENSOR_DISTANCE_TO_LAST_FILL, {}).get("name"), name
+        assert "km_since_last_fill" not in names, name

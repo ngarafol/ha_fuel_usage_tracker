@@ -48,8 +48,8 @@ SERVICE_EXPORT_CSV: Final = "export_csv"
 # Sensor keys. These are stable identifiers: they are exposed as the ``key`` state
 # attribute so the bundled Lovelace card never has to guess entity_ids.
 SENSOR_ODOMETER: Final = "odometer"
-SENSOR_KM_SINCE_LAST_FILL: Final = "km_since_last_fill"
 SENSOR_TOTAL_DISTANCE: Final = "total_distance"
+SENSOR_DISTANCE_TO_LAST_FILL: Final = "distance_to_last_fill"
 SENSOR_TOTAL_LITERS: Final = "total_liters"
 SENSOR_TOTAL_COST: Final = "total_cost"
 SENSOR_AVG_PRICE_PER_LITER: Final = "avg_price_per_liter"

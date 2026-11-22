@@ -20,7 +20,7 @@ const STATS = [
   { key: "total_cost", label: "Total cost", digits: 2, money: true },
   { key: "total_liters", label: "Total litres", digits: 2 },
   { key: "total_distance", label: "Total distance", digits: 0 },
-  { key: "km_since_last_fill", label: "Km since last fill", digits: 0 },
+  { key: "distance_to_last_fill", label: "Distance to last fill", digits: 0 },
   { key: "fill_count", label: "Fill-ups", digits: 0 },
   // `period` names the entity attribute (month/year) shown next to the tile.
   { key: "month_cost", label: "This month", digits: 2, money: true, period: "month" },
