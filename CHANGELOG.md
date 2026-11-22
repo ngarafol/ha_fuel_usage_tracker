@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.10.3] - 2026-11-22
+
+### Changed
+
+* Ponytail audit cleanup, no behaviour change:
+  * removed the dead `.header select` rule and the `select` half of the shared
+    input rule (the picker is a button now, no `<select>` is created any more);
+  * `_currency()` reads `total_cost` once instead of probing four sensors for
+    the same unit, and `_image()` reads the vehicle's own `entity_picture`
+    instead of scanning every state in Home Assistant;
+  * the card's two near-identical value builders share one part builder;
+  * `csv_export` inlines the single-use `excel_hr` constant (and drops the then
+    unused `typing.Final` import).
+
+
 ## [0.10.2] - 2026-11-22
 
 ### Changed
@@ -416,6 +431,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.10.3]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.10.3
 [0.10.2]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.10.2
 [0.10.1]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.10.1
 [0.10.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.10.0

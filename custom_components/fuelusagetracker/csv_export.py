@@ -7,7 +7,6 @@ import io
 import logging
 import re
 from pathlib import Path
-from typing import Final
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -22,8 +21,6 @@ ENCODING = "utf-8-sig"
 
 #: ``excel_hr`` writes what Excel expects in a Croatian locale: ``;`` between
 #: fields, ``,`` as the decimal separator and CRLF line endings.
-EXCEL_HR: Final = "excel_hr"
-
 FILLUP_COLUMNS = (
     "date",
     "liters",
@@ -43,7 +40,7 @@ def build_csv(usage: FuelUsage, scope: str, fmt: str = "standard") -> tuple[str,
         raise HomeAssistantError(
             f"Unknown export format '{fmt}'; use one of {', '.join(EXPORT_FORMATS)}"
         )
-    excel = fmt == EXCEL_HR
+    excel = fmt == "excel_hr"
     decimal = "," if excel else "."
     buffer = io.StringIO()
     writer = csv.writer(

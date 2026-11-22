@@ -89,7 +89,6 @@ const STYLES = `
   ha-card { overflow: hidden; }
   .header { display: flex; align-items: center; gap: 12px; padding: 12px 16px 0; flex-wrap: wrap; }
   .header .name { flex: 1 1 auto; font-size: 1.15rem; font-weight: 500; color: var(--primary-text-color); }
-  .header select { max-width: 100%; }
   /* Hero: photo (or themed gradient) with the vehicle identity and the three
      headline figures; the scrim keeps white text readable over any photo. */
   .hero { position: relative; display: flex; align-items: flex-end; margin: 12px 16px 0; min-height: 200px; border-radius: 14px; overflow: hidden; background-size: cover; background-position: center; }
@@ -153,7 +152,7 @@ const STYLES = `
   form.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 8px; align-items: end; }
   .field { display: flex; flex-direction: column; gap: 3px; font-size: .75rem; color: var(--secondary-text-color); }
   .field.check { flex-direction: row; align-items: center; gap: 6px; padding-bottom: 7px; font-size: .85rem; }
-  input, select { box-sizing: border-box; min-width: 0; width: 100%; padding: 6px 8px; font: inherit; color: var(--primary-text-color); background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 6px; }
+  input { box-sizing: border-box; min-width: 0; width: 100%; padding: 6px 8px; font: inherit; color: var(--primary-text-color); background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 6px; }
   input[type="checkbox"] { width: auto; }
   button { padding: 6px 12px; font: inherit; cursor: pointer; color: var(--primary-text-color); background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 6px; }
   button.primary { color: var(--text-primary-color, #fff); background: var(--primary-color); border-color: var(--primary-color); }
@@ -340,22 +339,15 @@ class FuelUsageTrackerCard extends HTMLElement {
   }
 
   _currency(vehicle) {
-    for (const key of ["total_cost", "last_fill_cost", "cost_per_100km", "avg_price_per_liter"]) {
-      const state = this._entity(vehicle, key);
-      const unit = state && state.attributes && state.attributes.unit_of_measurement;
-      if (unit) return String(unit).split("/")[0].trim();
-    }
-    return (this._hass.config && this._hass.config.currency) || "";
+    const unit = this._unit(this._entity(vehicle, "total_cost"));
+    return unit.split("/")[0].trim() || (this._hass.config && this._hass.config.currency) || "";
   }
 
   /** Hero background: the config override first, else the vehicle's entity_picture. */
   _image(vehicle) {
     if (this._config && this._config.image) return String(this._config.image);
-    for (const state of Object.values(this._hass.states)) {
-      const attrs = (state && state.attributes) || {};
-      if (attrs.vehicle === vehicle.id && attrs.entity_picture) return String(attrs.entity_picture);
-    }
-    return "";
+    const state = this._entity(vehicle, "odometer");
+    return (state && state.attributes && state.attributes.entity_picture) || "";
   }
 
   // --- formatting ---------------------------------------------------------
@@ -498,24 +490,22 @@ class FuelUsageTrackerCard extends HTMLElement {
 
     // One map for every value the card shows; each entry owns its own nodes.
     const values = {};
-    const valueNode = (stat, className) => {
+    const valueParts = (stat) => {
       const amount = el("span");
       const unit = el("span", { class: "unit" });
       values[stat.key] = { amount, unit, chip: null, stat };
-      return el("div", { class: className }, [
+      return [amount, unit];
+    };
+    const valueNode = (stat, className) =>
+      el("div", { class: className }, [
         el("div", { class: "label", text: stat.label }),
-        el("div", { class: "value" }, [amount, unit]),
+        el("div", { class: "value" }, valueParts(stat)),
       ]);
-    };
-    const valueRow = (stat) => {
-      const amount = el("span");
-      const unit = el("span", { class: "unit" });
-      values[stat.key] = { amount, unit, chip: null, stat };
-      return el("div", { class: "row" }, [
+    const valueRow = (stat) =>
+      el("div", { class: "row" }, [
         el("span", { class: "k", text: stat.label }),
-        el("span", { class: "v" }, [amount, unit]),
+        el("span", { class: "v" }, valueParts(stat)),
       ]);
-    };
 
     // Hero: photo (or themed gradient), vehicle identity, headline figures.
     const hero = el("div", { class: "hero no-image" });
