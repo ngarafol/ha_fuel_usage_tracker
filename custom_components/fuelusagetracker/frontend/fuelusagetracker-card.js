@@ -10,28 +10,41 @@
 const CARD_TAG = "fuelusagetracker-card";
 const DOMAIN = "fuelusagetracker";
 
-/** Summary tiles: attribute key, label, fraction digits, monetary flag. */
-const STATS = [
+/**
+ * Every value the card must show, in three groups. Each entry is
+ * `{key, label, digits, money?, period?}`; `period` names the entity attribute
+ * (month/year) whose label is shown next to the value.
+ */
+const HERO_FIGURES = [
   { key: "avg_consumption", label: "Avg consumption", digits: 2 },
-  { key: "last_consumption", label: "Last consumption", digits: 2 },
   { key: "cost_per_100km", label: "Cost per 100 km", digits: 2 },
-  // Not money: the unit span carries the per-litre unit (e.g. "EUR/L"), like cost_per_100km.
+  { key: "range_full_tank", label: "Range (full tank)", digits: 0 },
+];
+
+/** Borderless value row under the hero (the purchased totals close it). */
+const FIGURES = [
+  { key: "last_consumption", label: "Last consumption", digits: 2 },
   { key: "avg_price_per_liter", label: "Avg price per litre", digits: 3 },
-  // Burned side; the purchased totals close the list so the averages are not
-  // crowded by sums.
   { key: "consumed_liters", label: "Consumed litres", digits: 2 },
   { key: "consumed_cost", label: "Consumed cost", digits: 2, money: true },
   { key: "total_distance", label: "Total distance", digits: 0 },
   { key: "distance_to_last_fill", label: "Distance to last fill", digits: 0 },
-  { key: "range_full_tank", label: "Range (full tank)", digits: 0 },
-  { key: "fill_count", label: "Fill-ups", digits: 0 },
-  // `period` names the entity attribute (month/year) shown next to the tile.
-  { key: "month_cost", label: "This month", digits: 2, money: true, period: "month" },
-  { key: "month_avg_consumption", label: "This month consumption", digits: 2, period: "month" },
-  { key: "year_cost", label: "This year", digits: 2, money: true, period: "year" },
-  { key: "year_avg_consumption", label: "This year consumption", digits: 2, period: "year" },
-  { key: "total_cost", label: "Total cost", digits: 2, money: true },
   { key: "total_liters", label: "Total litres", digits: 2 },
+  { key: "total_cost", label: "Total cost", digits: 2, money: true },
+];
+
+/** Two tinted panels: current period cost + consumption, each with its chip. */
+const PERIOD_PANELS = [
+  {
+    title: "This month",
+    cost: { key: "month_cost", label: "Cost", digits: 2, money: true, period: "month" },
+    consumption: { key: "month_avg_consumption", label: "Consumption", digits: 2, period: "month" },
+  },
+  {
+    title: "This year",
+    cost: { key: "year_cost", label: "Cost", digits: 2, money: true, period: "year" },
+    consumption: { key: "year_avg_consumption", label: "Consumption", digits: 2, period: "year" },
+  },
 ];
 
 /** Trailing-window strip: sensor key, field label, fraction digits, money flag. */
@@ -77,26 +90,51 @@ const STYLES = `
   .header { display: flex; align-items: center; gap: 12px; padding: 12px 16px 0; flex-wrap: wrap; }
   .header .name { flex: 1 1 auto; font-size: 1.15rem; font-weight: 500; color: var(--primary-text-color); }
   .header select { max-width: 100%; }
-  .sub { padding: 2px 16px 10px; font-size: .85rem; color: var(--secondary-text-color); }
-  .sub:empty { display: none; }
-  /* Eight columns once they fit: 15 tiles are then always 8 + 7, regardless of
-     whether the values are filled in. Narrower cards (phones) fall back to the
-     readable auto-fit layout instead of squeezing 8 tiny tiles in. */
-  .stats { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; padding: 0 16px 12px; }
-  @container (max-width: 927px) {
-    .stats { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); }
+  /* Hero: photo (or themed gradient) with the vehicle identity and the three
+     headline figures; the scrim keeps white text readable over any photo. */
+  .hero { position: relative; display: flex; align-items: flex-end; margin: 12px 16px 0; min-height: 200px; border-radius: 14px; overflow: hidden; background-size: cover; background-position: center; }
+  .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0, 0, 0, .78), rgba(0, 0, 0, .40) 55%, rgba(0, 0, 0, .12)); }
+  .hero.no-image { background-image: linear-gradient(rgba(var(--rgb-primary-color), .18), rgba(var(--rgb-primary-color), .04)); }
+  .hero-art { position: absolute; right: 10px; bottom: 6px; width: 44%; max-width: 230px; height: auto; color: var(--primary-text-color); fill: currentColor; opacity: .18; pointer-events: none; }
+  .hero:not(.no-image) .hero-art { display: none; }
+  .hero select { position: absolute; top: 10px; right: 12px; z-index: 2; width: auto; max-width: 60%; }
+  .hero-body { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; width: 100%; padding: 16px; }
+  .hero-text { min-width: 0; }
+  .hero-name { font-size: 1.55rem; font-weight: 600; line-height: 1.15; color: #fff; overflow-wrap: anywhere; }
+  .hero-sub { margin-top: 2px; font-size: .85rem; color: rgba(255, 255, 255, .92); overflow-wrap: anywhere; }
+  .hero-figures { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+  .hero-figure .label, .hero-figure .unit { font-size: .68rem; letter-spacing: .04em; text-transform: uppercase; color: rgba(255, 255, 255, .9); }
+  .hero-figure .value { font-size: 1.5rem; font-weight: 600; color: #fff; }
+  .hero-figure .unit { margin-left: 3px; text-transform: none; letter-spacing: 0; }
+  .hero-body { text-shadow: 0 1px 4px rgba(0, 0, 0, .6); }
+  .hero.no-image .hero-body { text-shadow: none; }
+  .hero.no-image .hero-name { color: var(--primary-text-color); }
+  .hero.no-image .hero-sub { color: var(--secondary-text-color); }
+  .hero.no-image .hero-figure .value { color: var(--primary-text-color); }
+  .hero.no-image .hero-figure .label, .hero.no-image .hero-figure .unit { color: var(--secondary-text-color); }
+  @container (max-width: 519px) {
+    .hero-body { flex-direction: column; align-items: flex-start; }
+    .hero-figures { width: 100%; }
   }
-  .stat { padding: 8px 10px; border-radius: 8px; background: var(--secondary-background-color); }
-  .stat .label { font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--secondary-text-color); }
-  .stat .value { display: flex; flex-wrap: wrap; align-items: baseline; margin-top: 2px; font-size: 1.05rem; color: var(--primary-text-color); }
-  .stat .unit { margin-left: 3px; font-size: .72rem; color: var(--secondary-text-color); }
-  .stat .month { margin-left: 4px; font-size: .7rem; color: var(--secondary-text-color); }
+  .figures { display: flex; flex-wrap: wrap; column-gap: 26px; row-gap: 10px; padding: 14px 16px 4px; }
+  .figure { min-width: 0; }
+  .figure .label { font-size: .66rem; letter-spacing: .04em; text-transform: uppercase; color: var(--secondary-text-color); }
+  .figure .value { font-size: 1.05rem; color: var(--primary-text-color); }
+  .figure .unit { margin-left: 3px; font-size: .72rem; color: var(--secondary-text-color); }
+  .periods-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 16px 12px; }
+  .period-panel { padding: 12px 14px; border-radius: 12px; background: rgba(var(--rgb-primary-text-color), .07); }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--secondary-text-color); }
+  .panel-chip { padding: 0 6px; font-size: .68rem; letter-spacing: 0; text-transform: none; border-radius: 999px; background: rgba(var(--rgb-primary-color), .12); color: var(--primary-text-color); }
+  .panel-chip:empty { display: none; }
+  .period-panel .row { font-size: .95rem; }
   .section { border-top: 1px solid var(--divider-color); }
   .section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px 6px; font-weight: 500; color: var(--primary-text-color); }
   .rows, form.grid, .actions, .fills { padding: 0 16px 12px; }
   .row { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; font-size: .9rem; color: var(--primary-text-color); }
   .row .k { color: var(--secondary-text-color); }
   .row .v { text-align: right; }
+  /* A unit inside a row value needs the same gap as in the figures. */
+  .row .v .unit { margin-left: 3px; font-size: .72rem; color: var(--secondary-text-color); }
   form.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 8px; align-items: end; }
   .field { display: flex; flex-direction: column; gap: 3px; font-size: .75rem; color: var(--secondary-text-color); }
   .field.check { flex-direction: row; align-items: center; gap: 6px; padding-bottom: 7px; font-size: .85rem; }
@@ -155,6 +193,26 @@ function field(label, input, isCheck = false) {
   return node;
 }
 
+/** Material "directions_car" silhouette, used as the no-photo hero art. */
+const CAR_PATH =
+  "M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 " +
+  "1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 " +
+  "6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 " +
+  "1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z";
+
+/** Inline decorative SVG node — needs the SVG namespace to render. */
+function svgCar(path) {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "hero-art");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  const shape = document.createElementNS(ns, "path");
+  shape.setAttribute("d", path);
+  svg.append(shape);
+  return svg;
+}
+
 class FuelUsageTrackerCard extends HTMLElement {
   constructor() {
     super();
@@ -187,7 +245,8 @@ class FuelUsageTrackerCard extends HTMLElement {
   }
 
   getCardSize() {
-    return 6 + Math.min(4, this._displayedFills || 0);
+    // The 200 px hero plus the figures row and the two period panels.
+    return 8 + Math.min(4, this._displayedFills || 0);
   }
 
   // --- data discovery ------------------------------------------------------
@@ -242,6 +301,16 @@ class FuelUsageTrackerCard extends HTMLElement {
       if (unit) return String(unit).split("/")[0].trim();
     }
     return (this._hass.config && this._hass.config.currency) || "";
+  }
+
+  /** Hero background: the config override first, else the vehicle's entity_picture. */
+  _image(vehicle) {
+    if (this._config && this._config.image) return String(this._config.image);
+    for (const state of Object.values(this._hass.states)) {
+      const attrs = (state && state.attributes) || {};
+      if (attrs.vehicle === vehicle.id && attrs.entity_picture) return String(attrs.entity_picture);
+    }
+    return "";
   }
 
   // --- formatting ---------------------------------------------------------
@@ -382,38 +451,72 @@ class FuelUsageTrackerCard extends HTMLElement {
     this._vehId = vehicle.id;
     this._built = true;
 
-    // Header: vehicle name and a picker when there is more than one vehicle.
-    const header = el("div", { class: "header" }, [
-      el("span", { class: "name", text: vehicle.name }),
-    ]);
-    if (vehicles.length > 1) {
-      const select = el(
-        "select",
-        { "aria-label": "Vehicle", onchange: (event) => this._selectVehicle(event.target.value) },
-        vehicles.map((item) =>
-          el("option", { value: item.id, text: item.name, selected: item.id === vehicle.id ? "" : null })
-        )
-      );
-      header.append(select);
-    }
-    const subtitle = el("div", { class: "sub" });
-    const error = el("div", { class: "error", hidden: "" });
-    card.append(header, subtitle, error);
-
-    // Summary tiles.
-    const stats = el("div", { class: "stats" });
-    const statRefs = {};
-    for (const stat of STATS) {
+    // One map for every value the card shows; each entry owns its own nodes.
+    const values = {};
+    const valueNode = (stat, className) => {
       const amount = el("span");
       const unit = el("span", { class: "unit" });
-      const month = el("span", { class: "month" });
-      const value = el("div", { class: "value" }, [amount, unit, month]);
-      stats.append(
-        el("div", { class: "stat" }, [el("div", { class: "label", text: stat.label }), value])
+      values[stat.key] = { amount, unit, chip: null, stat };
+      return el("div", { class: className }, [
+        el("div", { class: "label", text: stat.label }),
+        el("div", { class: "value" }, [amount, unit]),
+      ]);
+    };
+    const valueRow = (stat) => {
+      const amount = el("span");
+      const unit = el("span", { class: "unit" });
+      values[stat.key] = { amount, unit, chip: null, stat };
+      return el("div", { class: "row" }, [
+        el("span", { class: "k", text: stat.label }),
+        el("span", { class: "v" }, [amount, unit]),
+      ]);
+    };
+
+    // Hero: photo (or themed gradient), vehicle identity, headline figures.
+    const hero = el("div", { class: "hero no-image" });
+    const heroName = el("div", { class: "hero-name", text: vehicle.name });
+    const heroSub = el("div", { class: "hero-sub" });
+    const heroFigures = el("div", { class: "hero-figures" });
+    for (const stat of HERO_FIGURES) heroFigures.append(valueNode(stat, "hero-figure"));
+    hero.append(
+      svgCar(CAR_PATH),
+      el("div", { class: "hero-body" }, [
+        el("div", { class: "hero-text" }, [heroName, heroSub]),
+        heroFigures,
+      ])
+    );
+    if (vehicles.length > 1) {
+      hero.append(
+        el(
+          "select",
+          { "aria-label": "Vehicle", onchange: (event) => this._selectVehicle(event.target.value) },
+          vehicles.map((item) =>
+            el("option", { value: item.id, text: item.name, selected: item.id === vehicle.id ? "" : null })
+          )
+        )
       );
-      statRefs[stat.key] = { amount, unit, month, stat };
     }
-    card.append(stats);
+
+    // Borderless figures row, then the two tinted period panels.
+    const figures = el("div", { class: "figures" });
+    for (const stat of FIGURES) figures.append(valueNode(stat, "figure"));
+    const summary = el("div", { class: "periods-summary" });
+    for (const panel of PERIOD_PANELS) {
+      const chip = el("span", { class: "panel-chip" });
+      const costRow = valueRow(panel.cost);
+      const consumptionRow = valueRow(panel.consumption);
+      values[panel.cost.key].chip = chip;
+      summary.append(
+        el("div", { class: "period-panel" }, [
+          el("div", { class: "panel-head" }, [el("span", { text: panel.title }), chip]),
+          costRow,
+          consumptionRow,
+        ])
+      );
+    }
+
+    const error = el("div", { class: "error", hidden: "" });
+    card.append(hero, error, figures, summary);
 
     // Trailing-window strip; hidden entirely when the rolling_* sensors are absent.
     const rollingWindow = el("span", { class: "window" });
@@ -535,9 +638,9 @@ class FuelUsageTrackerCard extends HTMLElement {
     );
 
     this._refs = {
-      subtitle,
       error,
-      stats: statRefs,
+      values,
+      hero: { hero, name: heroName, sub: heroSub },
       last: lastRefs,
       inputs,
       addButton,
@@ -555,19 +658,27 @@ class FuelUsageTrackerCard extends HTMLElement {
   _update(vehicle) {
     const refs = this._refs;
     const currency = this._currency(vehicle);
-    const fuel = vehicle.fuelType;
-    const engine = vehicle.engine;
-    refs.subtitle.textContent = [fuel, engine].filter(Boolean).join(" · ");
     this._renderError();
 
-    for (const [key, ref] of Object.entries(refs.stats)) {
+    for (const [key, ref] of Object.entries(refs.values)) {
       const state = this._entity(vehicle, key);
       ref.amount.textContent = this._value(state, ref.stat.digits, ref.stat.money ? currency : null);
       ref.unit.textContent = ref.stat.money ? "" : this._unit(state);
-      const stamp =
-        (ref.stat.period && state && state.attributes && state.attributes[ref.stat.period]) || "";
-      ref.month.textContent = stamp ? this._periodLabel(stamp) : "";
+      if (ref.chip) {
+        const stamp = (state && state.attributes && state.attributes[ref.stat.period]) || "";
+        ref.chip.textContent = stamp ? this._periodLabel(stamp) : "";
+      }
     }
+
+    // Hero identity: name, "fuel · engine · N fill-ups", and the photo.
+    const fillCount = this._value(this._entity(vehicle, "fill_count"), 0, null);
+    refs.hero.name.textContent = vehicle.name;
+    refs.hero.sub.textContent = [vehicle.fuelType, vehicle.engine, `${fillCount} fill-ups`]
+      .filter(Boolean)
+      .join(" · ");
+    const image = this._image(vehicle);
+    refs.hero.hero.className = image ? "hero" : "hero no-image";
+    refs.hero.hero.style.backgroundImage = image ? `url(${JSON.stringify(image)})` : "";
 
     const last = this._entity(vehicle, "last_fill");
     const attrs = (last && last.attributes) || {};

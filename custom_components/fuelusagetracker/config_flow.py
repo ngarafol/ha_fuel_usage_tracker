@@ -20,6 +20,7 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_ENGINE,
     CONF_FUEL_TYPE,
+    CONF_IMAGE,
     CONF_NAME,
     CONF_ODOMETER,
     CONF_TANK_LITERS,
@@ -34,7 +35,13 @@ DEFAULT_FUEL_TYPE = FUEL_TYPES[0]
 #: Older installs may still carry values under these keys in ``entry.options``,
 #: which would shadow the data through ``vehicle_settings()``; the reconfigure
 #: step strips them.
-_VEHICLE_KEYS = (CONF_FUEL_TYPE, CONF_ENGINE, CONF_ODOMETER, CONF_TANK_LITERS)
+_VEHICLE_KEYS = (
+    CONF_FUEL_TYPE,
+    CONF_ENGINE,
+    CONF_ODOMETER,
+    CONF_TANK_LITERS,
+    CONF_IMAGE,
+)
 
 
 def vehicle_schema() -> vol.Schema:
@@ -61,6 +68,7 @@ def vehicle_schema() -> vol.Schema:
             vol.Optional(CONF_TANK_LITERS): NumberSelector(
                 NumberSelectorConfig(min=0, step="any", unit_of_measurement="L")
             ),
+            vol.Optional(CONF_IMAGE): TextSelector(),
         }
     )
 

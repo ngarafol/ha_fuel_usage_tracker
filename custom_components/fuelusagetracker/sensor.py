@@ -26,6 +26,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     CONF_ENGINE,
     CONF_FUEL_TYPE,
+    CONF_IMAGE,
     DOMAIN,
     ENTITY_PREFIX,
     MONTH_HISTORY_MONTHS,
@@ -379,6 +380,18 @@ class FuelUsageSensor(CoordinatorEntity[FuelUsageCoordinator], SensorEntity):
             fillups=usage.fillup_rows(_MAX_FILLUPS),
         )
         return attributes
+
+    @property
+    def entity_picture(self) -> str | None:
+        """Optional vehicle photo, used by the card and HA's more-info dialog.
+
+        Defensive on purpose: the setting is free text from the config flow, so
+        anything that is not a non-blank string means "no picture".
+        """
+        image = vehicle_settings(self.coordinator.entry).get(CONF_IMAGE)
+        if not isinstance(image, str):
+            return None
+        return image.strip() or None
 
 
 async def async_setup_entry(

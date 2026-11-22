@@ -15,11 +15,14 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.fuelusagetracker import config_flow, const
 from tests.helpers import DEFAULT_VEHICLE, make_entry, sensor_state, setup_vehicle
 
+IMAGE = "/local/cars/passat.jpg"
+
 VEHICLE_KEYS = (
     const.CONF_FUEL_TYPE,
     const.CONF_ENGINE,
     const.CONF_ODOMETER,
     const.CONF_TANK_LITERS,
+    const.CONF_IMAGE,
 )
 
 #: What the old Configure form left behind: values that used to shadow entry.data.
@@ -28,6 +31,7 @@ STALE_OPTIONS = {
     const.CONF_ENGINE: "Stale 1.0",
     const.CONF_ODOMETER: 99999.0,
     const.CONF_TANK_LITERS: 40.0,
+    const.CONF_IMAGE: "/local/cars/stale.jpg",
 }
 
 
@@ -165,6 +169,7 @@ async def test_reconfigure_replaces_a_stale_option_value(hass):
             const.CONF_ENGINE: "2.0 TDI",
             const.CONF_ODOMETER: 12000.0,
             const.CONF_TANK_LITERS: 55.0,
+            const.CONF_IMAGE: IMAGE,
         },
     )
 
@@ -174,6 +179,7 @@ async def test_reconfigure_replaces_a_stale_option_value(hass):
     assert entry.data[const.CONF_ENGINE] == "2.0 TDI"
     assert entry.data[const.CONF_FUEL_TYPE] == "petrol"
     assert float(entry.data[const.CONF_TANK_LITERS]) == 55.0
+    assert entry.data[const.CONF_IMAGE] == IMAGE
     for key in VEHICLE_KEYS:
         assert key not in entry.options
     assert (
@@ -304,3 +310,55 @@ async def test_reconfigure_writes_and_then_clears_the_tank_capacity(hass):
     assert result["reason"] == "reconfigure_successful"
     await hass.async_block_till_done()
     assert const.CONF_TANK_LITERS not in entry.data
+
+
+async def test_user_flow_stores_the_vehicle_image(hass):
+    result = await hass.config_entries.flow.async_init(
+        const.DOMAIN, context={"source": "user"}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**DEFAULT_VEHICLE, const.CONF_IMAGE: IMAGE}
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["result"].data[const.CONF_IMAGE] == IMAGE
+
+
+def test_an_empty_vehicle_image_is_dropped_from_the_entry_data():
+    for empty in ("", None):
+        data = config_flow._vehicle_data(
+            {**DEFAULT_VEHICLE, const.CONF_IMAGE: empty}
+        )
+        assert const.CONF_IMAGE not in data
+
+
+async def test_reconfigure_writes_and_then_clears_the_vehicle_image(hass):
+    entry = await setup_vehicle(hass)
+
+    result = await _reconfigure_form(hass, entry)
+    result = await _submit(
+        hass,
+        result,
+        {
+            const.CONF_NAME: entry.title,
+            const.CONF_FUEL_TYPE: DEFAULT_VEHICLE[const.CONF_FUEL_TYPE],
+            const.CONF_IMAGE: IMAGE,
+        },
+    )
+    assert result["reason"] == "reconfigure_successful"
+    await hass.async_block_till_done()
+    assert entry.data[const.CONF_IMAGE] == IMAGE
+
+    # Submitting the wizard without an image clears the stored one.
+    result = await _reconfigure_form(hass, entry)
+    result = await _submit(
+        hass,
+        result,
+        {
+            const.CONF_NAME: entry.title,
+            const.CONF_FUEL_TYPE: DEFAULT_VEHICLE[const.CONF_FUEL_TYPE],
+        },
+    )
+    assert result["reason"] == "reconfigure_successful"
+    await hass.async_block_till_done()
+    assert const.CONF_IMAGE not in entry.data

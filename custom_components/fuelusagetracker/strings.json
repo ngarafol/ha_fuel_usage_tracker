@@ -10,12 +10,14 @@
           "fuel_type": "Fuel type",
           "engine": "Engine",
           "odometer": "Baseline odometer",
-          "tank_liters": "Tank capacity"
+          "tank_liters": "Tank capacity",
+          "image": "Car image URL"
         },
         "data_description": {
           "name": "Also used as the config entry title and as part of the device name.",
           "engine": "Free text, for example \"1.6 TDI\". Optional.",
-          "odometer": "Odometer reading when tracking starts, in km. Optional."
+          "odometer": "Odometer reading when tracking starts, in km. Optional.",
+          "image": "Optional. Put a photo in config/www, e.g. /local/cars/passat.jpg — it becomes the card's hero image."
         }
       },
       "reconfigure": {
@@ -26,12 +28,14 @@
           "fuel_type": "Fuel type",
           "engine": "Engine",
           "odometer": "Baseline odometer",
-          "tank_liters": "Tank capacity"
+          "tank_liters": "Tank capacity",
+          "image": "Car image URL"
         },
         "data_description": {
           "name": "Also used as the config entry title and as part of the device name.",
           "engine": "Free text, for example \"1.6 TDI\". Optional.",
-          "odometer": "Odometer reading when tracking starts, in km. Optional."
+          "odometer": "Odometer reading when tracking starts, in km. Optional.",
+          "image": "Optional. Put a photo in config/www, e.g. /local/cars/passat.jpg — it becomes the card's hero image."
         }
       }
     },

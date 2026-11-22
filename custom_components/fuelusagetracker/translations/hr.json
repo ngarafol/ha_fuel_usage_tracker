@@ -10,12 +10,14 @@
           "fuel_type": "Vrsta goriva",
           "engine": "Motor",
           "odometer": "Početna kilometraža",
-          "tank_liters": "Kapacitet rezervoara"
+          "tank_liters": "Kapacitet rezervoara",
+          "image": "URL slike auta"
         },
         "data_description": {
           "name": "Koristi se i kao naziv unosa te kao dio naziva uređaja.",
           "engine": "Slobodan tekst, na primjer \"1.6 TDI\". Neobavezno.",
-          "odometer": "Očitanje kilometraže na početku praćenja, u km. Neobavezno."
+          "odometer": "Očitanje kilometraže na početku praćenja, u km. Neobavezno.",
+          "image": "Neobavezno. Stavi sliku u config/www, npr. /local/cars/passat.jpg — koristi se kao naslovna slika kartice."
         }
       },
       "reconfigure": {
@@ -26,12 +28,14 @@
           "fuel_type": "Vrsta goriva",
           "engine": "Motor",
           "odometer": "Početna kilometraža",
-          "tank_liters": "Kapacitet rezervoara"
+          "tank_liters": "Kapacitet rezervoara",
+          "image": "URL slike auta"
         },
         "data_description": {
           "name": "Koristi se i kao naziv unosa te kao dio naziva uređaja.",
           "engine": "Slobodan tekst, na primjer \"1.6 TDI\". Neobavezno.",
-          "odometer": "Očitanje kilometraže na početku praćenja, u km. Neobavezno."
+          "odometer": "Očitanje kilometraže na početku praćenja, u km. Neobavezno.",
+          "image": "Neobavezno. Stavi sliku u config/www, npr. /local/cars/passat.jpg — koristi se kao naslovna slika kartice."
         }
       }
     },

@@ -39,6 +39,7 @@ Requires Home Assistant 2026.2 or newer (tested with 2026.2.3, Python 3.13).
 | Engine | Optional free text, e.g. `1.6 TDI`. |
 | Odometer | Optional odometer in km at the start of tracking. It is only used by the `odometer` sensor (which never reports less than it) — distance and consumption come from the fill-ups. |
 | Tank capacity | Optional tank size in litres. Enables `range_full_tank` (km a full tank lasts at your average consumption). |
+| Car image | Optional URL of a photo used as the card's hero background. Put the file in `config/www` (e.g. `config/www/cars/passat.jpg`) and enter `/local/cars/passat.jpg`. |
 
 Add the integration again for every additional vehicle. Vehicle settings are
 editable afterwards — open the integration entry's ⋮ menu and pick
@@ -282,6 +283,15 @@ The integration registers `fuelusagetracker-card` automatically as a frontend
 resource; after a browser refresh it appears in the card picker (*Add card →
 Fuel Usage Tracker*).
 
+The card opens with a photo hero: the vehicle name, `diesel · 1.6 HDi` and the
+three headline figures (average consumption, cost per 100 km, range on a full
+tank) sit on top of the car photo, with the remaining figures in a borderless row
+and *This month* / *This year* as two tinted panels — no grid of boxes. The photo
+comes from the vehicle's **Car image** field (`/local/cars/...`, i.e. a file in
+`config/www`) and is also exposed as `entity_picture` on the sensors, so Home
+Assistant shows it in the more-info dialog too. Without a photo the card falls
+back to a themed gradient with a car silhouette.
+
 ```yaml
 type: custom:fuelusagetracker-card
 entity: sensor.fuelusagetracker_passat_total_cost   # optional
@@ -327,6 +337,10 @@ the rolling summary, the monthly table and the yearly table sit below the tiles)
 ![The card, light theme](docs/images/card-light.png)
 
 ![The card, dark theme](docs/images/card-dark.png)
+
+*Demo photo: [Acgskup](https://commons.wikimedia.org/wiki/File:Volkswagen_Passat_(B8)_%E2%80%93_front_view_(2017).jpg),
+CC BY 4.0, via Wikimedia Commons — used only to render these previews; your own
+photo goes into `config/www`.*
 
 The comparison tables in detail — one renderer, one row per period, deltas
 against the previous period (the yearly table below the monthly one):

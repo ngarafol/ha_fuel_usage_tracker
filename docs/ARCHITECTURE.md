@@ -30,7 +30,9 @@ this document. Change it here first, then change code.
 Config/options keys: `name` (also the entry title), `fuel_type`
 (`petrol|diesel|lpg|cng|hybrid|electric|other`), `engine` (free text),
 `odometer` (odometer in km at the start of tracking, float) and
-`tank_liters` (optional tank capacity in L, float; enables `range_full_tank`).
+`tank_liters` (optional tank capacity in L, float; enables `range_full_tank`) and
+`image` (optional URL of the vehicle photo, free text; exposed as `entity_picture`
+on every sensor and used by the card hero).
 
 `vehicle_settings(entry)` in `data.py` merges `entry.data` with `entry.options`
 (options win) — always use it instead of reading `entry.data` directly. Entry
@@ -218,6 +220,9 @@ The `last_fill` sensor additionally exposes, for the card:
 
 * `fillup_id`, `liters`, `price`, `price_per_liter`, `odometer`, `station`,
   `full`, `notes` of the newest fill-up;
+* every sensor of a vehicle with a configured `image` carries `entity_picture`
+  (HA Entity property), which HA renders in more-info; the card uses it as the
+  hero background. Blank or missing values expose no `entity_picture` at all.
 * `fillups`: the newest first list of fill-up dicts, at most 50; a full fill-up
   that closed a measured leg also carries `leg_liters`, `leg_distance`,
   `leg_cost` and `leg_consumption` (L/100 km) — the fuel that leg burned. Shape of

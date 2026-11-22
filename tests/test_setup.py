@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
+import pytest
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.fuelusagetracker import const
-from tests.helpers import DEFAULT_VEHICLE, SENSOR_KEYS, setup_vehicle
+from tests.helpers import (
+    DEFAULT_VEHICLE,
+    SENSOR_KEYS,
+    make_entry,
+    sensor_state,
+    setup_vehicle,
+)
+
+#: A vehicle image the wizard would accept.
+IMAGE = "/local/cars/passat.jpg"
 
 #: Rendered unit of every sensor key (docs/ARCHITECTURE.md sensor key table);
 #: `None` means the sensor is unitless. Guards how units are derived.
@@ -151,3 +161,27 @@ async def test_per_100km_and_range_sensors_carry_their_contracted_classes(hass):
     distance = attributes[const.SENSOR_RANGE_FULL_TANK]
     assert distance["device_class"] == "distance"
     assert distance["state_class"] == "measurement"
+
+
+async def test_sensors_expose_the_configured_vehicle_image(hass):
+    await setup_vehicle(hass, make_entry(**{const.CONF_IMAGE: IMAGE}))
+
+    attributes = sensor_state(hass, const.SENSOR_FILL_COUNT).attributes
+
+    assert attributes["entity_picture"] == IMAGE
+
+
+@pytest.mark.parametrize("image", [None, "", "   "])
+async def test_an_absent_or_blank_image_exposes_no_entity_picture(hass, image):
+    await setup_vehicle(hass, make_entry(**{const.CONF_IMAGE: image}))
+
+    assert "entity_picture" not in sensor_state(hass, const.SENSOR_FILL_COUNT).attributes
+
+
+async def test_an_odd_image_value_does_not_break_the_sensor(hass):
+    await setup_vehicle(hass, make_entry(**{const.CONF_IMAGE: 42}))
+
+    state = sensor_state(hass, const.SENSOR_FILL_COUNT)
+
+    assert state.state == "0"
+    assert state.attributes.get("entity_picture") in (None, "42")

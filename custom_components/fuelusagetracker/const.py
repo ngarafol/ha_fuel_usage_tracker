@@ -19,6 +19,7 @@ CONF_FUEL_TYPE: Final = "fuel_type"
 CONF_ENGINE: Final = "engine"
 CONF_ODOMETER: Final = "odometer"
 CONF_TANK_LITERS: Final = "tank_liters"
+CONF_IMAGE: Final = "image"
 
 # Service field keys.
 CONF_VEHICLE: Final = "vehicle"
