@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.9.0] - 2026-11-22
+
+### Added
+
+* `cost_per_100km` — fuel cost per 100 km of the fuel that was actually burned
+  (10,12 €/100 km in the demo data), directly comparable with L/100 km.
+* `range_full_tank` — kilometres a full tank lasts at the average consumption.
+  Needs the new optional **Tank capacity** field (wizard and reconfigure); the
+  value is `tank_liters / avg_consumption * 100` and is unknown without it.
+* The fill-up list shows, for every full fill-up that closed a measured leg, a
+  third line with that leg's figures — `Leg: 897 km · 60,01 L · 6,69 L/100km ·
+  100,15 €` — fed by the new `leg_liters`, `leg_distance`, `leg_cost` and
+  `leg_consumption` keys in the fill-up payload (`fillup_rows(50)`). Partial
+  fill-ups and the first tank carry no leg keys and render no line.
+
+### Changed
+
+* **Breaking:** the `cost_per_km` sensor is replaced by `cost_per_100km`; the
+  card tile follows and `Range (full tank)` is added — 16 tiles, 8 + 8 on wide
+  cards, auto-fit below 928 px. Sensor count is 30.
+
 ## [0.8.0] - 2026-11-22
 
 ### Added
@@ -344,6 +365,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.9.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.9.0
 [0.8.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.8.0
 [0.7.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.7.0
 [0.6.9]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.9
