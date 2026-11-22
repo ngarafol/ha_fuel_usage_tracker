@@ -4,6 +4,31 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.10.0] - 2026-11-22
+
+### Added
+
+* **Car image** (optional, per vehicle): a URL such as `/local/cars/passat.jpg`
+  (file in `config/www`). It is exposed as `entity_picture` on every sensor, so
+  Home Assistant also shows it in the more-info dialog, and the card uses it as
+  the hero background.
+* **New card design** — photo hero instead of a grid of boxes:
+  * the car photo fills a 200 px hero with a scrim and text shadow; the vehicle
+    name, `diesel · 1.6 HDi · 70 fill-ups` and three headline figures (average
+    consumption, cost per 100 km, range on a full tank) sit on top of it;
+  * without a photo the hero falls back to a themed gradient with an inline car
+    silhouette;
+  * the remaining eight figures sit in a borderless wrapping row, and *This
+    month* / *This year* became two tinted panels;
+  * the rolling strip, both comparison tables, the CSV button, the fill-up form
+    and the fill-up log (with the per-fill leg line) are unchanged.
+
+### Fixed
+
+* Unit spacing inside the period panels ("6,69 L/100km", not "6,69L/100km").
+* Hero text contrast over bright photos (stronger scrim + text shadow), so a
+  white car or a sunny shot stays readable.
+
 ## [0.9.0] - 2026-11-22
 
 ### Added
@@ -365,6 +390,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.10.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.10.0
 [0.9.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.9.0
 [0.8.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.8.0
 [0.7.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.7.0
