@@ -97,14 +97,22 @@ const STYLES = `
   .hero.no-image { background-image: linear-gradient(rgba(var(--rgb-primary-color), .18), rgba(var(--rgb-primary-color), .04)); }
   .hero-art { position: absolute; right: 10px; bottom: 6px; width: 44%; max-width: 230px; height: auto; color: var(--primary-text-color); fill: currentColor; opacity: .18; pointer-events: none; }
   .hero:not(.no-image) .hero-art { display: none; }
-  /* A native <select> keeps its own chrome in some engines, so this aims at a
-     theme-coloured pill that looks deliberate either way. */
-  .hero select { position: absolute; top: 10px; right: 10px; z-index: 2; width: auto; max-width: 46%;
-    padding: 2px 8px; border-radius: 999px; border: 1px solid var(--divider-color);
-    background: var(--card-background-color); color: var(--primary-text-color);
-    font: inherit; font-size: .8rem; text-overflow: ellipsis; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
-  .hero select option { color: #111; background: #fff; }
-  .hero.no-image select { background: var(--secondary-background-color); color: var(--primary-text-color); border-color: rgba(var(--rgb-primary-text-color), .2); }
+  /* A native <select> cannot be styled reliably inside a shadow root (engines
+     paint their own chrome), so the picker is a button plus a small menu. */
+  .picker { position: absolute; top: 12px; right: 12px; z-index: 3; }
+  .picker-button { display: inline-flex; align-items: center; gap: 6px; max-width: 250px;
+    padding: 5px 10px 5px 12px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .45);
+    background: rgba(0, 0, 0, .45); color: #fff; font: inherit; font-size: .82rem; cursor: pointer; }
+  .picker-button:hover { background: rgba(0, 0, 0, .62); }
+  .picker-button .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .picker-menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 100%; padding: 4px;
+    border-radius: 12px; border: 1px solid var(--divider-color); background: var(--card-background-color);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+  .picker-option { display: block; width: 100%; padding: 7px 10px; border: 0; border-radius: 8px;
+    background: none; color: var(--primary-text-color); font: inherit; font-size: .85rem;
+    text-align: left; white-space: nowrap; cursor: pointer; }
+  .picker-option:hover, .picker-option[aria-selected="true"] { background: rgba(var(--rgb-primary-text-color), .08); }
+  .hero.no-image .picker-button { background: var(--card-background-color); color: var(--primary-text-color); border-color: var(--divider-color); }
   .hero-body { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; width: 100%; padding: 16px; }
   .hero-text { min-width: 0; }
   .hero-name { font-size: 1.55rem; font-weight: 600; line-height: 1.15; color: #fff; overflow-wrap: anywhere; }
@@ -208,6 +216,23 @@ const CAR_PATH =
   "1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z";
 
 /** Inline decorative SVG node — needs the SVG namespace to render. */
+function caretIcon() {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 10 6");
+  svg.setAttribute("width", "10");
+  svg.setAttribute("height", "6");
+  svg.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS(ns, "path");
+  path.setAttribute("d", "M1 1l4 4 4-4");
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "currentColor");
+  path.setAttribute("stroke-width", "1.6");
+  path.setAttribute("stroke-linecap", "round");
+  svg.append(path);
+  return svg;
+}
+
 function svgCar(path) {
   const ns = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(ns, "svg");
@@ -506,15 +531,48 @@ class FuelUsageTrackerCard extends HTMLElement {
       ])
     );
     if (vehicles.length > 1) {
-      hero.append(
-        el(
-          "select",
-          { "aria-label": "Vehicle", onchange: (event) => this._selectVehicle(event.target.value) },
-          vehicles.map((item) =>
-            el("option", { value: item.id, text: item.name, selected: item.id === vehicle.id ? "" : null })
+      const menu = el("div", { class: "picker-menu", role: "listbox", hidden: "" });
+      for (const item of vehicles) {
+        menu.append(
+          el(
+            "button",
+            {
+              class: "picker-option",
+              type: "button",
+              role: "option",
+              "aria-selected": item.id === vehicle.id ? "true" : "false",
+              onclick: () => this._selectVehicle(item.id),
+            },
+            [el("span", { text: item.name })]
           )
-        )
-      );
+        );
+      }
+      const toggle = el("button", {
+        class: "picker-button",
+        type: "button",
+        "aria-haspopup": "listbox",
+        "aria-expanded": "false",
+        "aria-label": `Vehicle: ${vehicle.name}`,
+      }, [el("span", { class: "nm", text: vehicle.name }), caretIcon()]);
+      toggle.addEventListener("click", () => {
+        const open = menu.hidden;
+        menu.hidden = !open;
+        toggle.setAttribute("aria-expanded", String(open));
+      });
+      toggle.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          menu.hidden = true;
+          toggle.setAttribute("aria-expanded", "false");
+        }
+      });
+      const picker = el("div", { class: "picker" }, [toggle, menu]);
+      picker.addEventListener("focusout", (event) => {
+        if (!picker.contains(event.relatedTarget)) {
+          menu.hidden = true;
+          toggle.setAttribute("aria-expanded", "false");
+        }
+      });
+      hero.append(picker);
     }
 
     // Borderless figures row, then the two tinted period panels.
