@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.8.0] - 2026-11-22
+
+### Added
+
+* `consumed_liters` and `consumed_cost` sensors — the fuel that actually left the
+  tank (measured legs), as opposed to the purchase totals. The card shows them
+  next to the averages.
+* Card tiles are now 15 and follow the requested order: averages, consumed
+  litres/cost, distance and fill-ups, month, year, and the purchase totals
+  (`total_cost`, `total_liters`) at the end.
+* Card layout: 8 + 7 on wide cards (≥ 928 px), the readable auto-fit layout below
+  that. Verified at 1170/1000/940/900/860/800/760/700/640/528/400 px with zero
+  overflowing tiles.
+
+### Fixed
+
+* A long value plus its period stamp (e.g. `1.498,80 € 2026`) no longer paints
+  outside its tile: `.stat .value` is a wrapping flex row.
+* `consumed_liters`/`consumed_cost` return `0.0` (float) instead of the integer
+  `0` when no leg has closed yet, so HA renders `0.0` instead of `0`.
+
 ## [0.7.0] - 2026-10-22
 
 ### Fixed
@@ -323,6 +344,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.8.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.8.0
 [0.7.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.7.0
 [0.6.9]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.9
 [0.6.8]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.6.8
