@@ -32,7 +32,7 @@ Config/options keys: `name` (also the entry title), `fuel_type`
 `odometer` (odometer in km at the start of tracking, float) and
 `tank_liters` (optional tank capacity in L, float; enables `range_full_tank`) and
 `image` (optional URL of the vehicle photo, free text; exposed as `entity_picture`
-on every sensor and used by the card hero).
+on every sensor and used as the card's avatar).
 
 `vehicle_settings(entry)` in `data.py` merges `entry.data` with `entry.options`
 (options win) — always use it instead of reading `entry.data` directly. Entry
@@ -240,7 +240,7 @@ vehicle name); with no config it shows the first tracked vehicle and offers a
 picker. It must:
 
 * read stats from entities via the `key` attribute (never from guessed entity ids),
-* surface **every** sensor key somewhere (a tile, the rolling strip, a period
+* surface **every** sensor key somewhere (the headline number, a chip, the rolling strip, a period
   table row, a last-fill row or the fill-up list); a key the card never renders
   is a bug — `avg_price_per_liter` was exactly that until 0.1.1. The period
   totals are shown through their period: `month_distance`/`month_liters`/

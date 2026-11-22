@@ -283,14 +283,19 @@ The integration registers `fuelusagetracker-card` automatically as a frontend
 resource; after a browser refresh it appears in the card picker (*Add card →
 Fuel Usage Tracker*).
 
-The card opens with a photo hero: the vehicle name, `diesel · 1.6 HDi` and the
-three headline figures (average consumption, cost per 100 km, range on a full
-tank) sit on top of the car photo, with the remaining figures in a borderless row
-and *This month* / *This year* as two tinted panels — no grid of boxes. The photo
-comes from the vehicle's **Car image** field (`/local/cars/...`, i.e. a file in
-`config/www`) and is also exposed as `entity_picture` on the sensors, so Home
-Assistant shows it in the more-info dialog too. Without a photo the card falls
-back to a themed gradient with a car silhouette.
+The card opens with a **glow header**: the vehicle avatar (the *Car image*, or the
+vehicle's initial), the name and fuel/engine line, the headline average consumption as a
+large number with its 12-month sparkline and a "vs 12-month" delta, and — when
+more than one vehicle exists — a pill picker. Below it comes a row of glass
+chips for every other figure, and *This month* / *This year* as two tinted panels
+whose bar shows the period's cost against the usual one. No grid of boxes.
+
+The card uses only Home Assistant theme variables (plus a gradient from
+`--primary-color`), so it follows your theme in light and dark mode; `backdrop-filter`
+gives the chips their frosted look. The avatar comes from the vehicle's **Car
+image** field (`/local/cars/...`, i.e. a file in `config/www`) and is also exposed
+as `entity_picture` on the sensors, so Home Assistant shows it in the more-info
+dialog too.
 
 ```yaml
 type: custom:fuelusagetracker-card

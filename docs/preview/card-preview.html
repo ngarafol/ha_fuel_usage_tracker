@@ -54,12 +54,15 @@
   /* Home Assistant default light theme. */
   :root {
     --primary-color: #03a9f4;
+    --rgb-primary-color: 3, 169, 244;
     --accent-color: #ff9800;
     --primary-background-color: #fafafa;
     --card-background-color: #ffffff;
+    --rgb-card-background-color: 255, 255, 255;
     --ha-card-background: #ffffff;
     --secondary-background-color: #e5e5e5;
     --primary-text-color: #212121;
+    --rgb-primary-text-color: 33, 33, 33;
     --secondary-text-color: #727272;
     --disabled-text-color: #bdbdbd;
     --divider-color: rgba(0, 0, 0, 0.12);
@@ -73,6 +76,8 @@
   /* Home Assistant default dark theme. */
   :root[data-theme="dark"] {
     --primary-background-color: #111111;
+    --rgb-card-background-color: 28, 28, 28;
+    --rgb-primary-text-color: 225, 225, 225;
     --card-background-color: #1c1c1c;
     --ha-card-background: #1c1c1c;
     --secondary-background-color: #2b2b2b;
@@ -1363,6 +1368,7 @@
     }
   ]
 }</script>
+
 <script src="../../custom_components/fuelusagetracker/frontend/fuelusagetracker-card.js"></script>
 <script>
   // --- minimal stand-ins for the two HA frontend pieces the card depends on ---

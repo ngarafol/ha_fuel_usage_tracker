@@ -4,6 +4,30 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.11.0] - 2026-11-23
+
+### Changed
+
+* **Card redesign — glow, no more boxes.** Following the current Home Assistant
+  look (Mushroom chips, frosted glass panels, gradient area charts):
+  * a gradient glow header built from the theme's `--primary-color`, with the
+    vehicle avatar (the *Car image*, or the vehicle initial), the name and
+    fuel/engine line, and the headline average consumption as a big number with
+    its **12-month sparkline** and a "vs 12-month" delta pill;
+  * one row of glass chips for the other eleven figures (label over value);
+  * *This month* / *This year* as frosted panels whose bar shows the period's
+    cost against the usual one (12-month average for the month, the trailing
+    12 months for the year);
+  * the vehicle picker is a pill inside the glow header, and the avatar replaces
+    the old photo hero — no full-bleed image any more.
+* The card now uses only Home Assistant theme variables plus the accent colour,
+  so light and dark mode are both first-class; `backdrop-filter` gives the chips
+  and panels their frosted look, with a `prefers-reduced-motion` guard.
+
+### Removed
+
+* The photo hero, the car silhouette and the 16-tile grid they replaced.
+
 ## [0.10.3] - 2026-11-22
 
 ### Changed
@@ -431,6 +455,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.11.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.11.0
 [0.10.3]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.10.3
 [0.10.2]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.10.2
 [0.10.1]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.10.1

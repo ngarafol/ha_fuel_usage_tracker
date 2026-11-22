@@ -11,29 +11,27 @@ const CARD_TAG = "fuelusagetracker-card";
 const DOMAIN = "fuelusagetracker";
 
 /**
- * Every value the card must show, in three groups. Each entry is
- * `{key, label, digits, money?, period?}`; `period` names the entity attribute
- * (month/year) whose label is shown next to the value.
+ * One headline number (with the 12-month trend) and a row of icon chips. Each
+ * entry is `{key, label, digits, money?, icon?}`; the key is the sensor's `key`
+ * attribute, so nothing here depends on entity ids.
  */
-const HERO_FIGURES = [
-  { key: "avg_consumption", label: "Avg consumption", digits: 2 },
-  { key: "cost_per_100km", label: "Cost per 100 km", digits: 2 },
-  { key: "range_full_tank", label: "Range (full tank)", digits: 0 },
+const BIG = { key: "avg_consumption", label: "Avg consumption", digits: 2 };
+
+const CHIPS = [
+  { key: "cost_per_100km", label: "Cost / 100 km", digits: 2, money: true },
+  { key: "last_consumption", label: "Last fill", digits: 2 },
+  { key: "avg_price_per_liter", label: "Price / litre", digits: 3 },
+  { key: "consumed_liters", label: "Consumed", digits: 2 },
+  { key: "consumed_cost", label: "Fuel cost", digits: 2, money: true },
+  { key: "total_distance", label: "Distance", digits: 0 },
+  { key: "distance_to_last_fill", label: "Until last fill", digits: 0 },
+  { key: "range_full_tank", label: "Range", digits: 0 },
+  { key: "fill_count", label: "Fill-ups", digits: 0 },
+  { key: "total_liters", label: "Bought", digits: 2 },
+  { key: "total_cost", label: "Spent", digits: 2, money: true },
 ];
 
-/** Borderless value row under the hero (the purchased totals close it). */
-const FIGURES = [
-  { key: "last_consumption", label: "Last consumption", digits: 2 },
-  { key: "avg_price_per_liter", label: "Avg price per litre", digits: 3 },
-  { key: "consumed_liters", label: "Consumed litres", digits: 2 },
-  { key: "consumed_cost", label: "Consumed cost", digits: 2, money: true },
-  { key: "total_distance", label: "Total distance", digits: 0 },
-  { key: "distance_to_last_fill", label: "Distance to last fill", digits: 0 },
-  { key: "total_liters", label: "Total litres", digits: 2 },
-  { key: "total_cost", label: "Total cost", digits: 2, money: true },
-];
-
-/** Two tinted panels: current period cost + consumption, each with its chip. */
+/** Two period cards: current period cost + consumption, each with its chip. */
 const PERIOD_PANELS = [
   {
     title: "This month",
@@ -89,58 +87,85 @@ const STYLES = `
   ha-card { overflow: hidden; }
   .header { display: flex; align-items: center; gap: 12px; padding: 12px 16px 0; flex-wrap: wrap; }
   .header .name { flex: 1 1 auto; font-size: 1.15rem; font-weight: 500; color: var(--primary-text-color); }
-  /* Hero: photo (or themed gradient) with the vehicle identity and the three
-     headline figures; the scrim keeps white text readable over any photo. */
-  .hero { position: relative; display: flex; align-items: flex-end; margin: 12px 16px 0; min-height: 200px; border-radius: 14px; overflow: hidden; background-size: cover; background-position: center; }
-  .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0, 0, 0, .78), rgba(0, 0, 0, .40) 55%, rgba(0, 0, 0, .12)); }
-  .hero.no-image { background-image: linear-gradient(rgba(var(--rgb-primary-color), .18), rgba(var(--rgb-primary-color), .04)); }
-  .hero-art { position: absolute; right: 10px; bottom: 6px; width: 44%; max-width: 230px; height: auto; color: var(--primary-text-color); fill: currentColor; opacity: .18; pointer-events: none; }
-  .hero:not(.no-image) .hero-art { display: none; }
-  /* A native <select> cannot be styled reliably inside a shadow root (engines
-     paint their own chrome), so the picker is a button plus a small menu. */
-  .picker { position: absolute; top: 12px; right: 12px; z-index: 3; }
-  .picker-button { display: inline-flex; align-items: center; gap: 6px; max-width: 250px;
+  /* Glow header: a gradient from the theme accent (no photo), a big number with
+     a 12-month sparkline, and a row of glass icon chips. */
+  .glow { position: relative; margin: 12px 16px 0; padding: 14px 16px 16px; border-radius: 18px; overflow: hidden;
+    color: var(--text-primary-color, #fff);
+    background:
+      radial-gradient(120% 140% at 0% 0%, rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 55%),
+      linear-gradient(135deg, rgba(var(--rgb-primary-color, 3, 169, 244), .95), rgba(var(--rgb-primary-color, 3, 169, 244), .55)); }
+  .glow::after { content: ""; position: absolute; top: -40%; right: -10%; width: 60%; height: 140%;
+    background: radial-gradient(closest-side, rgba(255, 255, 255, .28), rgba(255, 255, 255, 0)); pointer-events: none; }
+  .glow-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; }
+  .avatar { flex: 0 0 auto; display: grid; place-items: center; width: 44px; height: 44px; overflow: hidden;
+    border-radius: 14px; background: rgba(255, 255, 255, .18); border: 1px solid rgba(255, 255, 255, .28); }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-letter { font-size: 1.1rem; font-weight: 600; color: currentColor; }
+  .avatar img[hidden], .avatar-letter[hidden] { display: none; }
+  .glow-id { flex: 1 1 auto; min-width: 0; }
+  .glow-name { font-size: 1.15rem; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+  .glow-sub { font-size: .8rem; opacity: .85; overflow-wrap: anywhere; }
+  .glow-big { position: relative; z-index: 1; margin-top: 14px; }
+  .big-label { font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; opacity: .8; }
+  .big-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .big-value { display: flex; align-items: baseline; gap: 6px; font-size: 2.6rem; font-weight: 600; line-height: 1; }
+  .big-unit { font-size: .9rem; font-weight: 500; opacity: .85; }
+  .spark { flex: 1 1 120px; max-width: 220px; height: 46px; color: currentColor; opacity: .9; }
+  .spark-line { stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .spark-area { fill: url(#fut-spark); }
+  .spark-dot { fill: currentColor; }
+  .big-delta { display: inline-block; margin-top: 7px; padding: 3px 9px; border-radius: 999px;
+    font-size: .76rem; background: rgba(0, 0, 0, .18); }
+  .big-delta:empty { display: none; }
+  .big-delta.up { background: rgba(231, 76, 60, .42); }
+  .big-delta.down { background: rgba(46, 204, 113, .42); }
+  .picker { position: relative; z-index: 2; }
+  .picker-button { display: inline-flex; align-items: center; gap: 6px; max-width: 190px;
     padding: 5px 10px 5px 12px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .45);
-    background: rgba(0, 0, 0, .45); color: #fff; font: inherit; font-size: .82rem; cursor: pointer; }
-  .picker-button:hover { background: rgba(0, 0, 0, .62); }
+    background: rgba(0, 0, 0, .28); color: inherit; font: inherit; font-size: .82rem; cursor: pointer;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .picker-button:hover { background: rgba(0, 0, 0, .4); }
   .picker-button .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .picker-menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 100%; padding: 4px;
+  .picker-menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 100%; padding: 4px; z-index: 3;
     border-radius: 12px; border: 1px solid var(--divider-color); background: var(--card-background-color);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+    color: var(--primary-text-color); box-shadow: 0 10px 28px rgba(0, 0, 0, .4); }
   .picker-option { display: block; width: 100%; padding: 7px 10px; border: 0; border-radius: 8px;
     background: none; color: var(--primary-text-color); font: inherit; font-size: .85rem;
     text-align: left; white-space: nowrap; cursor: pointer; }
-  .picker-option:hover, .picker-option[aria-selected="true"] { background: rgba(var(--rgb-primary-text-color), .08); }
-  .hero.no-image .picker-button { background: var(--card-background-color); color: var(--primary-text-color); border-color: var(--divider-color); }
-  .hero-body { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; width: 100%; padding: 16px; }
-  .hero-text { min-width: 0; }
-  .hero-name { font-size: 1.55rem; font-weight: 600; line-height: 1.15; color: #fff; overflow-wrap: anywhere; }
-  .hero-sub { margin-top: 2px; font-size: .85rem; color: rgba(255, 255, 255, .92); overflow-wrap: anywhere; }
-  .hero-figures { display: flex; flex-wrap: wrap; gap: 6px 18px; }
-  .hero-figure .label, .hero-figure .unit { font-size: .68rem; letter-spacing: .04em; text-transform: uppercase; color: rgba(255, 255, 255, .9); }
-  .hero-figure .value { font-size: 1.5rem; font-weight: 600; color: #fff; }
-  .hero-figure .unit { margin-left: 3px; text-transform: none; letter-spacing: 0; }
-  .hero-body { text-shadow: 0 1px 4px rgba(0, 0, 0, .6); }
-  .hero.no-image .hero-body { text-shadow: none; }
-  .hero.no-image .hero-name { color: var(--primary-text-color); }
-  .hero.no-image .hero-sub { color: var(--secondary-text-color); }
-  .hero.no-image .hero-figure .value { color: var(--primary-text-color); }
-  .hero.no-image .hero-figure .label, .hero.no-image .hero-figure .unit { color: var(--secondary-text-color); }
-  @container (max-width: 519px) {
-    .hero-body { flex-direction: column; align-items: flex-start; }
-    .hero-figures { width: 100%; }
-  }
-  .figures { display: flex; flex-wrap: wrap; column-gap: 26px; row-gap: 10px; padding: 14px 16px 4px; }
-  .figure { min-width: 0; }
-  .figure .label { font-size: .66rem; letter-spacing: .04em; text-transform: uppercase; color: var(--secondary-text-color); }
-  .figure .value { font-size: 1.05rem; color: var(--primary-text-color); }
-  .figure .unit { margin-left: 3px; font-size: .72rem; color: var(--secondary-text-color); }
-  .periods-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 16px 12px; }
-  .period-panel { padding: 12px 14px; border-radius: 12px; background: rgba(var(--rgb-primary-text-color), .07); }
-  .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--secondary-text-color); }
-  .panel-chip { padding: 0 6px; font-size: .68rem; letter-spacing: 0; text-transform: none; border-radius: 999px; background: rgba(var(--rgb-primary-color), .12); color: var(--primary-text-color); }
+  .picker-option:hover, .picker-option[aria-selected="true"] { background: rgba(var(--rgb-primary-text-color, 33, 33, 33), .08); }
+  /* Mushroom-style chips: glass, icon in the accent colour, label over value. */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 0; }
+  .chip { display: inline-flex; align-items: center; padding: 6px 12px 6px 10px; border-radius: 999px;
+    background: rgba(var(--rgb-primary-color, 3, 169, 244), .10); border: 1px solid rgba(var(--rgb-primary-color, 3, 169, 244), .22);
+    backdrop-filter: blur(10px) saturate(140%); -webkit-backdrop-filter: blur(10px) saturate(140%);
+    transition: transform .15s ease, border-color .15s ease; }
+  .chip:hover { transform: translateY(-1px); border-color: rgba(var(--rgb-primary-text-color, 33, 33, 33), .2); }
+  .chip-text { display: flex; flex-direction: column; line-height: 1.15; }
+  .chip-label { font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; color: var(--secondary-text-color); }
+  .chip-value { font-size: .92rem; color: var(--primary-text-color); }
+  /* Week/month cards: glass, with a share bar against the 12-month average. */
+  .periods-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 16px 12px; }
+  .period-panel { padding: 12px 14px; border-radius: 16px;
+    background: rgba(var(--rgb-primary-color, 3, 169, 244), .10); border: 1px solid rgba(var(--rgb-primary-color, 3, 169, 244), .22);
+    backdrop-filter: blur(10px) saturate(140%); -webkit-backdrop-filter: blur(10px) saturate(140%); }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+    font-size: .66rem; letter-spacing: .07em; text-transform: uppercase; color: var(--secondary-text-color); }
+  .panel-chip { padding: 0 7px; font-size: .64rem; letter-spacing: 0; text-transform: none; border-radius: 999px;
+    background: rgba(var(--rgb-primary-color, 3, 169, 244), .14); color: var(--primary-color); }
   .panel-chip:empty { display: none; }
-  .period-panel .row { font-size: .95rem; }
+  .period-panel .row { font-size: .92rem; }
+  .period-panel .row .v { font-weight: 600; }
+  .panel-bar { height: 4px; margin-top: 9px; border-radius: 999px; overflow: hidden; background: rgba(var(--rgb-primary-color, 3, 169, 244), .16); }
+  .panel-fill { height: 100%; width: 0; border-radius: 999px; background: var(--primary-color); transition: width .4s ease; }
+  @container (max-width: 519px) {
+    .glow-big { margin-top: 12px; }
+    .big-value { font-size: 2.2rem; }
+    .big-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+    .spark { flex: 0 0 auto; width: 100%; max-width: none; height: 38px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .chip, .panel-fill { transition: none; }
+  }
   .section { border-top: 1px solid var(--divider-color); }
   .section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px 6px; font-weight: 500; color: var(--primary-text-color); }
   .rows, form.grid, .actions, .fills { padding: 0 16px 12px; }
@@ -207,13 +232,6 @@ function field(label, input, isCheck = false) {
   return node;
 }
 
-/** Material "directions_car" silhouette, used as the no-photo hero art. */
-const CAR_PATH =
-  "M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 " +
-  "1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 " +
-  "6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 " +
-  "1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z";
-
 /** Inline decorative SVG node — needs the SVG namespace to render. */
 function caretIcon() {
   const ns = "http://www.w3.org/2000/svg";
@@ -232,16 +250,40 @@ function caretIcon() {
   return svg;
 }
 
-function svgCar(path) {
+/** Sparkline skeleton: area + line + end dot, coloured by the surrounding text. */
+function sparkline() {
   const ns = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("class", "hero-art");
-  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "spark");
+  svg.setAttribute("viewBox", "0 0 120 44");
+  svg.setAttribute("preserveAspectRatio", "none");
   svg.setAttribute("aria-hidden", "true");
-  const shape = document.createElementNS(ns, "path");
-  shape.setAttribute("d", path);
-  svg.append(shape);
-  return svg;
+  const defs = document.createElementNS(ns, "defs");
+  const gradient = document.createElementNS(ns, "linearGradient");
+  gradient.setAttribute("id", "fut-spark");
+  gradient.setAttribute("x1", "0");
+  gradient.setAttribute("y1", "0");
+  gradient.setAttribute("x2", "0");
+  gradient.setAttribute("y2", "1");
+  for (const [offset, opacity] of [["0", ".45"], ["1", "0"]]) {
+    const stop = document.createElementNS(ns, "stop");
+    stop.setAttribute("offset", offset);
+    stop.setAttribute("stop-color", "currentColor");
+    stop.setAttribute("stop-opacity", opacity);
+    gradient.append(stop);
+  }
+  defs.append(gradient);
+  const area = document.createElementNS(ns, "path");
+  area.setAttribute("class", "spark-area");
+  area.setAttribute("fill", "url(#fut-spark)");
+  const line = document.createElementNS(ns, "path");
+  line.setAttribute("class", "spark-line");
+  line.setAttribute("fill", "none");
+  const dot = document.createElementNS(ns, "circle");
+  dot.setAttribute("class", "spark-dot");
+  dot.setAttribute("r", "2.4");
+  svg.append(defs, area, line, dot);
+  return { node: svg, area, line, dot };
 }
 
 class FuelUsageTrackerCard extends HTMLElement {
@@ -341,6 +383,42 @@ class FuelUsageTrackerCard extends HTMLElement {
   _currency(vehicle) {
     const unit = this._unit(this._entity(vehicle, "total_cost"));
     return unit.split("/")[0].trim() || (this._hass.config && this._hass.config.currency) || "";
+  }
+
+  /** The last 12 month rows (oldest first) with a usable consumption value. */
+  _history(vehicle) {
+    const state = this._entity(vehicle, "month_cost");
+    const rows = (state && state.attributes && state.attributes.months) || [];
+    return rows
+      .slice(0, 12)
+      .reverse()
+      .map((row) => ({ avg_consumption: Number(row.avg_consumption) }))
+      .filter((row) => Number.isFinite(row.avg_consumption) && row.avg_consumption > 0);
+  }
+
+  /** Draw the consumption trend; hidden while there is nothing to compare. */
+  _renderSpark(spark, rows) {
+    if (rows.length < 2) {
+      spark.node.style.display = "none";
+      return;
+    }
+    spark.node.style.display = "";
+    const width = 120;
+    const height = 44;
+    const pad = 3;
+    const values = rows.map((row) => row.avg_consumption);
+    const min = Math.min(...values);
+    const span = Math.max(...values) - min || 1;
+    const points = values.map((value, index) => [
+      (pad + (index / (values.length - 1)) * (width - pad * 2)).toFixed(1),
+      (pad + (1 - (value - min) / span) * (height - pad * 2)).toFixed(1),
+    ]);
+    const line = points.map(([x, y], index) => `${index ? "L" : "M"}${x},${y}`).join(" ");
+    const last = points[points.length - 1];
+    spark.line.setAttribute("d", line);
+    spark.area.setAttribute("d", `${line} L${last[0]},${height} L${points[0][0]},${height} Z`);
+    spark.dot.setAttribute("cx", last[0]);
+    spark.dot.setAttribute("cy", last[1]);
   }
 
   /** Hero background: the config override first, else the vehicle's entity_picture. */
@@ -507,17 +585,31 @@ class FuelUsageTrackerCard extends HTMLElement {
         el("span", { class: "v" }, valueParts(stat)),
       ]);
 
-    // Hero: photo (or themed gradient), vehicle identity, headline figures.
-    const hero = el("div", { class: "hero no-image" });
-    const heroName = el("div", { class: "hero-name", text: vehicle.name });
-    const heroSub = el("div", { class: "hero-sub" });
-    const heroFigures = el("div", { class: "hero-figures" });
-    for (const stat of HERO_FIGURES) heroFigures.append(valueNode(stat, "hero-figure"));
-    hero.append(
-      svgCar(CAR_PATH),
-      el("div", { class: "hero-body" }, [
-        el("div", { class: "hero-text" }, [heroName, heroSub]),
-        heroFigures,
+    // Glow header: avatar, identity, headline number with the 12-month trend.
+    const glow = el("div", { class: "glow" });
+    const avatarImg = el("img", { alt: "" });
+    const avatarLetter = el("span", { class: "avatar-letter" });
+    const avatar = el("div", { class: "avatar" }, [avatarImg, avatarLetter]);
+    const glowName = el("div", { class: "glow-name", text: vehicle.name });
+    const glowSub = el("div", { class: "glow-sub" });
+    const bigAmount = el("span");
+    const bigUnit = el("span", { class: "big-unit" });
+    values[BIG.key] = { amount: bigAmount, unit: bigUnit, chip: null, stat: BIG };
+    const bigDelta = el("div", { class: "big-delta" });
+    const spark = sparkline();
+    const glowTop = el("div", { class: "glow-top" }, [
+      avatar,
+      el("div", { class: "glow-id" }, [glowName, glowSub]),
+    ]);
+    glow.append(
+      glowTop,
+      el("div", { class: "glow-big" }, [
+        el("div", { class: "big-label", text: BIG.label }),
+        el("div", { class: "big-row" }, [
+          el("div", { class: "big-value" }, [bigAmount, bigUnit]),
+          spark.node,
+        ]),
+        bigDelta,
       ])
     );
     if (vehicles.length > 1) {
@@ -562,29 +654,46 @@ class FuelUsageTrackerCard extends HTMLElement {
           toggle.setAttribute("aria-expanded", "false");
         }
       });
-      hero.append(picker);
+      glowTop.append(picker);
     }
 
-    // Borderless figures row, then the two tinted period panels.
-    const figures = el("div", { class: "figures" });
-    for (const stat of FIGURES) figures.append(valueNode(stat, "figure"));
+    // One icon chip per remaining figure, then the two period cards.
+    const chips = el("div", { class: "chips" });
+    for (const stat of CHIPS) {
+      const amount = el("span");
+      const unit = el("span", { class: "unit" });
+      values[stat.key] = { amount, unit, chip: null, stat };
+      chips.append(
+        el("div", { class: "chip" }, [
+          el("span", { class: "chip-text" }, [
+            el("span", { class: "chip-label", text: stat.label }),
+            el("span", { class: "chip-value" }, [amount, unit]),
+          ]),
+        ])
+      );
+    }
+
     const summary = el("div", { class: "periods-summary" });
+    const panelBars = {};
     for (const panel of PERIOD_PANELS) {
       const chip = el("span", { class: "panel-chip" });
-      const costRow = valueRow(panel.cost);
+      const fill = el("div", { class: "panel-fill" });
+      const costRow = valueRow(panel.cost);      // registers values[cost.key]
       const consumptionRow = valueRow(panel.consumption);
+      panelBars[panel.cost.key] = fill;
       values[panel.cost.key].chip = chip;
       summary.append(
         el("div", { class: "period-panel" }, [
           el("div", { class: "panel-head" }, [el("span", { text: panel.title }), chip]),
           costRow,
           consumptionRow,
+          el("div", { class: "panel-bar" }, [fill]),
         ])
       );
     }
 
     const error = el("div", { class: "error", hidden: "" });
-    card.append(hero, error, figures, summary);
+    card.append(glow, error, chips, summary);
 
     // Trailing-window strip; hidden entirely when the rolling_* sensors are absent.
     const rollingWindow = el("span", { class: "window" });
@@ -708,7 +817,10 @@ class FuelUsageTrackerCard extends HTMLElement {
     this._refs = {
       error,
       values,
-      hero: { hero, name: heroName, sub: heroSub },
+      glow: { name: glowName, sub: glowSub, avatarImg, avatarLetter },
+      big: { amount: bigAmount, unit: bigUnit, delta: bigDelta },
+      spark,
+      panels: panelBars,
       last: lastRefs,
       inputs,
       addButton,
@@ -738,15 +850,44 @@ class FuelUsageTrackerCard extends HTMLElement {
       }
     }
 
-    // Hero identity: name, "fuel · engine · N fill-ups", and the photo.
+    // Glow header: identity, avatar (photo or car icon) and the headline number.
     const fillCount = this._value(this._entity(vehicle, "fill_count"), 0, null);
-    refs.hero.name.textContent = vehicle.name;
-    refs.hero.sub.textContent = [vehicle.fuelType, vehicle.engine, `${fillCount} fill-ups`]
+    refs.glow.name.textContent = vehicle.name;
+    refs.glow.sub.textContent = [vehicle.fuelType, vehicle.engine, `${fillCount} fill-ups`]
       .filter(Boolean)
       .join(" · ");
     const image = this._image(vehicle);
-    refs.hero.hero.className = image ? "hero" : "hero no-image";
-    refs.hero.hero.style.backgroundImage = image ? `url(${JSON.stringify(image)})` : "";
+    refs.glow.avatarImg.hidden = !image;
+    refs.glow.avatarLetter.hidden = Boolean(image);
+    if (image) refs.glow.avatarImg.src = image;
+
+    const bigState = this._entity(vehicle, BIG.key);
+    refs.big.amount.textContent = this._value(bigState, BIG.digits, null);
+    refs.big.unit.textContent = this._unit(bigState);
+
+    const history = this._history(vehicle);
+    this._renderSpark(refs.spark, history);
+    const current = Number(bigState && bigState.state);
+    const mean = history.length
+      ? history.reduce((sum, row) => sum + row.avg_consumption, 0) / history.length
+      : null;
+    if (Number.isFinite(current) && mean) {
+      const change = ((current - mean) / mean) * 100;
+      refs.big.delta.textContent = `${change > 0 ? "+" : ""}${this._number(change, 1)}% vs 12-month`;
+      refs.big.delta.className = `big-delta ${change > 0.5 ? "up" : change < -0.5 ? "down" : ""}`;
+    } else {
+      refs.big.delta.textContent = "";
+      refs.big.delta.className = "big-delta";
+    }
+
+    // Period cards: the bar is this period's cost against the usual one.
+    const rollingCost = Number(this._entity(vehicle, "rolling_cost")?.state);
+    for (const panel of PERIOD_PANELS) {
+      const cost = Number(this._entity(vehicle, panel.cost.key)?.state);
+      const base = panel.cost.period === "month" ? rollingCost / 12 : rollingCost;
+      const share = Number.isFinite(cost) && base > 0 ? Math.min(100, (cost / base) * 100) : 0;
+      refs.panels[panel.cost.key].style.width = `${share}%`;
+    }
 
     const last = this._entity(vehicle, "last_fill");
     const attrs = (last && last.attributes) || {};
