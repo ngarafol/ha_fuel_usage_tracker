@@ -46,6 +46,13 @@ const PERIOD_PANELS = [
 ];
 
 /** Trailing-window strip: sensor key, field label, fraction digits, money flag. */
+/** The 12-month chart can show any of these, switched by the segmented control. */
+const TREND_SERIES = [
+  { key: "avg_consumption", label: "L/100km", digits: 2, unit: "L/100km" },
+  { key: "cost", label: "Cost", digits: 2, money: true },
+  { key: "distance", label: "Distance", digits: 0, unit: "km" },
+];
+
 const ROLLING = [
   { key: "rolling_distance", label: "Distance", digits: 0 },
   { key: "rolling_liters", label: "Litres", digits: 2 },
@@ -111,9 +118,6 @@ const STYLES = `
   .big-value { display: flex; align-items: baseline; gap: 6px; font-size: 2.6rem; font-weight: 600; line-height: 1; }
   .big-unit { font-size: .9rem; font-weight: 500; opacity: .85; }
   .spark { flex: 1 1 120px; max-width: 220px; height: 46px; color: currentColor; opacity: .9; }
-  .spark-line { stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-  .spark-area { fill: url(#fut-spark); }
-  .spark-dot { fill: currentColor; }
   .big-delta { display: inline-block; margin-top: 7px; padding: 3px 9px; border-radius: 999px;
     font-size: .76rem; background: rgba(0, 0, 0, .18); }
   .big-delta:empty { display: none; }
@@ -135,28 +139,51 @@ const STYLES = `
   .picker-option:hover, .picker-option[aria-selected="true"] { background: rgba(var(--rgb-primary-text-color, 33, 33, 33), .08); }
   /* Mushroom-style chips: glass, icon in the accent colour, label over value. */
   .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 0; }
-  .chip { display: inline-flex; align-items: center; padding: 6px 12px 6px 10px; border-radius: 999px;
+  .chip { display: inline-flex; align-items: center; padding: 5px 11px; border-radius: 999px;
     background: rgba(var(--rgb-primary-color, 3, 169, 244), .10); border: 1px solid rgba(var(--rgb-primary-color, 3, 169, 244), .22);
     backdrop-filter: blur(10px) saturate(140%); -webkit-backdrop-filter: blur(10px) saturate(140%);
     transition: transform .15s ease, border-color .15s ease; }
   .chip:hover { transform: translateY(-1px); border-color: rgba(var(--rgb-primary-text-color, 33, 33, 33), .2); }
   .chip-text { display: flex; flex-direction: column; line-height: 1.15; }
   .chip-label { font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; color: var(--secondary-text-color); }
-  .chip-value { font-size: .92rem; color: var(--primary-text-color); }
+  .chip-value { font-size: .88rem; color: var(--primary-text-color); }
+  .chip-value .unit { margin-left: 4px; font-size: .72rem; color: var(--secondary-text-color); }
   /* Week/month cards: glass, with a share bar against the 12-month average. */
-  .periods-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 16px 12px; }
-  .period-panel { padding: 12px 14px; border-radius: 16px;
+  .periods-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 10px 16px 12px; }
+  .period-panel { position: relative; min-width: 0; padding: 12px 14px; border-radius: 16px;
     background: rgba(var(--rgb-primary-color, 3, 169, 244), .10); border: 1px solid rgba(var(--rgb-primary-color, 3, 169, 244), .22);
     backdrop-filter: blur(10px) saturate(140%); -webkit-backdrop-filter: blur(10px) saturate(140%); }
-  .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  .panel-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     font-size: .66rem; letter-spacing: .07em; text-transform: uppercase; color: var(--secondary-text-color); }
+  .panel-chip { margin-left: auto; }
   .panel-chip { padding: 0 7px; font-size: .64rem; letter-spacing: 0; text-transform: none; border-radius: 999px;
     background: rgba(var(--rgb-primary-color, 3, 169, 244), .14); color: var(--primary-color); }
   .panel-chip:empty { display: none; }
-  .period-panel .row { font-size: .92rem; }
+  .period-panel .row { gap: 8px; font-size: .92rem; }
+  .period-panel .row .v { overflow-wrap: anywhere; }
   .period-panel .row .v { font-weight: 600; }
-  .panel-bar { height: 4px; margin-top: 9px; border-radius: 999px; overflow: hidden; background: rgba(var(--rgb-primary-color, 3, 169, 244), .16); }
-  .panel-fill { height: 100%; width: 0; border-radius: 999px; background: var(--primary-color); transition: width .4s ease; }
+  .ring-box { position: relative; flex: 0 0 auto; width: 32px; height: 32px; }
+  .ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 3; }
+  .ring .ring-track { stroke: rgba(var(--rgb-primary-color, 3, 169, 244), .18); }
+  .ring .ring-fill { stroke: var(--primary-color); stroke-linecap: round; transition: stroke-dashoffset .5s ease; }
+  .ring-label { position: absolute; inset: 0; display: grid; place-items: center; font-size: .56rem; font-weight: 600; color: var(--primary-color); }
+  /* 12-month chart: area + line + grid, with a segmented series control. */
+  .trend { padding: 4px 16px 12px; }
+  .trend-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+  .trend-title { font-weight: 500; color: var(--primary-text-color); }
+  .segments { display: inline-flex; padding: 2px; gap: 2px; border-radius: 999px; background: rgba(var(--rgb-primary-color, 3, 169, 244), .12); }
+  .segments button { padding: 3px 9px; border: 0; border-radius: 999px; background: none; color: var(--secondary-text-color); font: inherit; font-size: .72rem; cursor: pointer; }
+  .segments button[aria-pressed="true"] { background: var(--primary-color); color: #fff; }
+  .chart { display: block; width: 100%; height: 132px; overflow: visible; cursor: crosshair; color: var(--primary-color); }
+  .chart .grid { stroke: rgba(var(--rgb-primary-text-color, 33, 33, 33), .10); stroke-width: 1; }
+  .chart .axis { fill: var(--secondary-text-color); font-size: 9px; }
+  .chart .area { fill: rgba(var(--rgb-primary-color, 3, 169, 244), .22); }
+  .chart .line { fill: none; stroke: var(--primary-color); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .chart .dot { fill: var(--primary-color); }
+  .chart .dot.picked { stroke: var(--card-background-color); stroke-width: 2; }
+  .chart .hit { fill: transparent; }
+  .trend-read { margin-top: 2px; font-size: .78rem; color: var(--secondary-text-color); min-height: 1.1em; }
   @container (max-width: 519px) {
     .glow-big { margin-top: 12px; }
     .big-value { font-size: 2.2rem; }
@@ -164,7 +191,7 @@ const STYLES = `
     .spark { flex: 0 0 auto; width: 100%; max-width: none; height: 38px; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .chip, .panel-fill { transition: none; }
+    .chip, .ring .ring-fill { transition: none; }
   }
   .section { border-top: 1px solid var(--divider-color); }
   .section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px 6px; font-weight: 500; color: var(--primary-text-color); }
@@ -250,6 +277,128 @@ function caretIcon() {
   return svg;
 }
 
+/** Donut ring: the share of the usual cost, with the percentage in the middle. */
+function ring() {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "ring");
+  svg.setAttribute("viewBox", "0 0 36 36");
+  svg.setAttribute("aria-hidden", "true");
+  const CIRCUMFERENCE = 2 * Math.PI * 15;
+  for (const [cls, offset] of [["ring-track", 0], ["ring-fill", CIRCUMFERENCE]]) {
+    const circle = document.createElementNS(ns, "circle");
+    circle.setAttribute("class", cls);
+    circle.setAttribute("cx", "18");
+    circle.setAttribute("cy", "18");
+    circle.setAttribute("r", "15");
+    if (cls === "ring-fill") {
+      circle.setAttribute("stroke-dasharray", CIRCUMFERENCE.toFixed(2));
+      circle.setAttribute("stroke-dashoffset", offset.toFixed(2));
+    }
+    svg.append(circle);
+  }
+  const label = el("span", { class: "ring-label" });
+  return { box: el("div", { class: "ring-box" }, [svg, label]), fill: svg.querySelector(".ring-fill"), label };
+}
+
+/** The 12-month chart skeleton: grid, gradient area, line, dots, hit area. */
+function trendChart() {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "chart");
+  svg.setAttribute("viewBox", "0 0 320 132");
+  svg.setAttribute("preserveAspectRatio", "none");
+  const grid = document.createElementNS(ns, "g");
+  grid.setAttribute("class", "grid");
+  for (const y of [12, 52, 92]) {
+    const line = document.createElementNS(ns, "line");
+    line.setAttribute("x1", "4");
+    line.setAttribute("x2", "316");
+    line.setAttribute("y1", y);
+    line.setAttribute("y2", y);
+    grid.append(line);
+  }
+  const area = document.createElementNS(ns, "path");
+  area.setAttribute("class", "area");
+  const line = document.createElementNS(ns, "path");
+  line.setAttribute("class", "line");
+  const dots = document.createElementNS(ns, "g");
+  const hit = document.createElementNS(ns, "rect");
+  hit.setAttribute("class", "hit");
+  hit.setAttribute("x", "4");
+  hit.setAttribute("y", "4");
+  hit.setAttribute("width", "312");
+  hit.setAttribute("height", "108");
+  svg.append(grid, area, line, dots, hit);
+  return { node: svg, area, line, dots, hit };
+}
+
+/** Plain svg container for the header's 12-month bar mini-chart. */
+function barChart() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "spark");
+  svg.setAttribute("viewBox", "0 0 120 44");
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("aria-hidden", "true");
+  return svg;
+}
+
+/** Donut ring: the share of the usual cost, with the percentage in the middle. */
+function ring() {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "ring");
+  svg.setAttribute("viewBox", "0 0 36 36");
+  svg.setAttribute("aria-hidden", "true");
+  const CIRCUMFERENCE = 2 * Math.PI * 15;
+  for (const [cls, offset] of [["ring-track", 0], ["ring-fill", CIRCUMFERENCE]]) {
+    const circle = document.createElementNS(ns, "circle");
+    circle.setAttribute("class", cls);
+    circle.setAttribute("cx", "18");
+    circle.setAttribute("cy", "18");
+    circle.setAttribute("r", "15");
+    if (cls === "ring-fill") {
+      circle.setAttribute("stroke-dasharray", CIRCUMFERENCE.toFixed(2));
+      circle.setAttribute("stroke-dashoffset", offset.toFixed(2));
+    }
+    svg.append(circle);
+  }
+  const label = el("span", { class: "ring-label" });
+  return { box: el("div", { class: "ring-box" }, [svg, label]), fill: svg.querySelector(".ring-fill"), label };
+}
+
+/** The 12-month chart skeleton: grid, gradient area, line, dots, hit area. */
+function trendChart() {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "chart");
+  svg.setAttribute("viewBox", "0 0 320 132");
+  svg.setAttribute("preserveAspectRatio", "none");
+  const grid = document.createElementNS(ns, "g");
+  grid.setAttribute("class", "grid");
+  for (const y of [12, 52, 92]) {
+    const line = document.createElementNS(ns, "line");
+    line.setAttribute("x1", "4");
+    line.setAttribute("x2", "316");
+    line.setAttribute("y1", y);
+    line.setAttribute("y2", y);
+    grid.append(line);
+  }
+  const area = document.createElementNS(ns, "path");
+  area.setAttribute("class", "area");
+  const line = document.createElementNS(ns, "path");
+  line.setAttribute("class", "line");
+  const dots = document.createElementNS(ns, "g");
+  const hit = document.createElementNS(ns, "rect");
+  hit.setAttribute("class", "hit");
+  hit.setAttribute("x", "4");
+  hit.setAttribute("y", "4");
+  hit.setAttribute("width", "312");
+  hit.setAttribute("height", "108");
+  svg.append(grid, area, line, dots, hit);
+  return { node: svg, area, line, dots, hit };
+}
+
 /** Sparkline skeleton: area + line + end dot, coloured by the surrounding text. */
 function sparkline() {
   const ns = "http://www.w3.org/2000/svg";
@@ -258,21 +407,6 @@ function sparkline() {
   svg.setAttribute("viewBox", "0 0 120 44");
   svg.setAttribute("preserveAspectRatio", "none");
   svg.setAttribute("aria-hidden", "true");
-  const defs = document.createElementNS(ns, "defs");
-  const gradient = document.createElementNS(ns, "linearGradient");
-  gradient.setAttribute("id", "fut-spark");
-  gradient.setAttribute("x1", "0");
-  gradient.setAttribute("y1", "0");
-  gradient.setAttribute("x2", "0");
-  gradient.setAttribute("y2", "1");
-  for (const [offset, opacity] of [["0", ".45"], ["1", "0"]]) {
-    const stop = document.createElementNS(ns, "stop");
-    stop.setAttribute("offset", offset);
-    stop.setAttribute("stop-color", "currentColor");
-    stop.setAttribute("stop-opacity", opacity);
-    gradient.append(stop);
-  }
-  defs.append(gradient);
   const area = document.createElementNS(ns, "path");
   area.setAttribute("class", "spark-area");
   area.setAttribute("fill", "url(#fut-spark)");
@@ -296,6 +430,9 @@ class FuelUsageTrackerCard extends HTMLElement {
     this._busy = false;
     this._error = null;
     this._errorIsNotice = false;
+    this._trendIndex = 0;
+    this._trendPick = null;
+    this._trendRows = [];
   }
 
   static getStubConfig(hass) {
@@ -392,33 +529,89 @@ class FuelUsageTrackerCard extends HTMLElement {
     return rows
       .slice(0, 12)
       .reverse()
-      .map((row) => ({ avg_consumption: Number(row.avg_consumption) }))
-      .filter((row) => Number.isFinite(row.avg_consumption) && row.avg_consumption > 0);
+      .map((row) => ({
+        period: String(row.period || ""),
+        cost: Number(row.cost),
+        distance: Number(row.distance),
+        liters: Number(row.liters),
+        avg_consumption: Number(row.avg_consumption),
+      }))
+      .filter((row) => row.period);
   }
 
-  /** Draw the consumption trend; hidden while there is nothing to compare. */
-  _renderSpark(spark, rows) {
+  /** The glow header's 12-month cost bars; hidden while there is nothing to plot. */
+  _drawBars(spark, rows) {
     if (rows.length < 2) {
-      spark.node.style.display = "none";
+      spark.style.display = "none";
       return;
     }
-    spark.node.style.display = "";
-    const width = 120;
-    const height = 44;
-    const pad = 3;
-    const values = rows.map((row) => row.avg_consumption);
+    spark.style.display = "";
+    spark.textContent = "";
+    const ns = "http://www.w3.org/2000/svg";
+    const values = rows.map((row) => (Number.isFinite(row.cost) ? row.cost : 0));
+    const max = Math.max(...values) || 1;
+    const gap = 2;
+    const width = (120 - gap * (values.length - 1)) / values.length;
+    values.forEach((value, index) => {
+      const height = Math.max(2, (value / max) * 40);
+      const rect = document.createElementNS(ns, "rect");
+      rect.setAttribute("x", (index * (width + gap)).toFixed(1));
+      rect.setAttribute("y", (44 - height).toFixed(1));
+      rect.setAttribute("width", width.toFixed(1));
+      rect.setAttribute("height", height.toFixed(1));
+      rect.setAttribute("rx", "1.3");
+      rect.setAttribute("fill", "currentColor");
+      rect.setAttribute("opacity", index === values.length - 1 ? "1" : ".5");
+      spark.append(rect);
+    });
+  }
+
+  /** Draw the 12-month trend for the selected series and the tapped month. */
+  _renderTrend(vehicle) {
+    const refs = this._refs.trend;
+    const series = TREND_SERIES[this._trendIndex] || TREND_SERIES[0];
+    const rows = this._history(vehicle).filter((row) => Number.isFinite(row[series.key]));
+    this._trendRows = rows;
+    if (rows.length < 2) {
+      refs.node.style.display = "none";
+      refs.read.textContent = "Not enough history for a chart yet.";
+      return;
+    }
+    refs.node.style.display = "";
+    const LEFT = 4;
+    const RIGHT = 316;
+    const TOP = 8;
+    const BOTTOM = 100;
+    const values = rows.map((row) => row[series.key]);
     const min = Math.min(...values);
     const span = Math.max(...values) - min || 1;
     const points = values.map((value, index) => [
-      (pad + (index / (values.length - 1)) * (width - pad * 2)).toFixed(1),
-      (pad + (1 - (value - min) / span) * (height - pad * 2)).toFixed(1),
+      LEFT + (index / (values.length - 1)) * (RIGHT - LEFT),
+      BOTTOM - ((value - min) / span) * (BOTTOM - TOP),
     ]);
-    const line = points.map(([x, y], index) => `${index ? "L" : "M"}${x},${y}`).join(" ");
-    const last = points[points.length - 1];
-    spark.line.setAttribute("d", line);
-    spark.area.setAttribute("d", `${line} L${last[0]},${height} L${points[0][0]},${height} Z`);
-    spark.dot.setAttribute("cx", last[0]);
-    spark.dot.setAttribute("cy", last[1]);
+    const path = points
+      .map(([x, y], index) => `${index ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`)
+      .join(" ");
+    refs.line.setAttribute("d", path);
+    refs.area.setAttribute("d", `${path} L${RIGHT},${BOTTOM} L${LEFT},${BOTTOM} Z`);
+    const picked = this._trendPick === null ? points.length - 1 : Math.min(points.length - 1, Math.max(0, this._trendPick));
+    refs.dots.textContent = "";
+    const ns = "http://www.w3.org/2000/svg";
+    points.forEach(([x, y], index) => {
+      const dot = document.createElementNS(ns, "circle");
+      dot.setAttribute("class", index === picked ? "dot picked" : "dot");
+      dot.setAttribute("cx", x.toFixed(1));
+      dot.setAttribute("cy", y.toFixed(1));
+      dot.setAttribute("r", index === picked ? "3.4" : "1.8");
+      dot.setAttribute("opacity", index === picked ? "1" : ".5");
+      refs.dots.append(dot);
+    });
+    const row = rows[picked];
+    const currency = this._currency(vehicle);
+    const value = series.money
+      ? this._money(row[series.key], currency)
+      : `${this._number(row[series.key], series.digits)} ${series.unit}`;
+    refs.read.textContent = `${this._periodLabel(row.period)} · ${value}`;
   }
 
   /** Hero background: the config override first, else the vehicle's entity_picture. */
@@ -596,7 +789,7 @@ class FuelUsageTrackerCard extends HTMLElement {
     const bigUnit = el("span", { class: "big-unit" });
     values[BIG.key] = { amount: bigAmount, unit: bigUnit, chip: null, stat: BIG };
     const bigDelta = el("div", { class: "big-delta" });
-    const spark = sparkline();
+    const spark = barChart();
     const glowTop = el("div", { class: "glow-top" }, [
       avatar,
       el("div", { class: "glow-id" }, [glowName, glowSub]),
@@ -677,23 +870,55 @@ class FuelUsageTrackerCard extends HTMLElement {
     const panelBars = {};
     for (const panel of PERIOD_PANELS) {
       const chip = el("span", { class: "panel-chip" });
-      const fill = el("div", { class: "panel-fill" });
       const costRow = valueRow(panel.cost);      // registers values[cost.key]
       const consumptionRow = valueRow(panel.consumption);
-      panelBars[panel.cost.key] = fill;
+      const progress = ring();
+      panelBars[panel.cost.key] = progress;
       values[panel.cost.key].chip = chip;
       summary.append(
         el("div", { class: "period-panel" }, [
-          el("div", { class: "panel-head" }, [el("span", { text: panel.title }), chip]),
+          el("div", { class: "panel-head" }, [progress.box, el("span", { text: panel.title }), chip]),
           costRow,
           consumptionRow,
-          el("div", { class: "panel-bar" }, [fill]),
         ])
       );
     }
 
+    const segments = TREND_SERIES.map((series, index) =>
+      el("button", {
+        type: "button",
+        "aria-pressed": index === this._trendIndex ? "true" : "false",
+        text: series.label,
+        onclick: () => {
+          this._trendIndex = index;
+          this._trendPick = null;
+          segments.forEach((node, i) => node.setAttribute("aria-pressed", String(i === index)));
+          this._renderTrend(vehicle);
+        },
+      })
+    );
+    const chart = trendChart();
+    const trendRead = el("div", { class: "trend-read" });
+    const pick = (event) => {
+      const box = chart.node.getBoundingClientRect();
+      if (!box.width || this._trendRows.length < 2) return;
+      const ratio = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
+      this._trendPick = Math.round(ratio * (this._trendRows.length - 1));
+      this._renderTrend(vehicle);
+    };
+    chart.hit.addEventListener("pointerdown", pick);
+    chart.hit.addEventListener("pointermove", pick);
+    const trendNode = el("div", { class: "trend" }, [
+      el("div", { class: "trend-head" }, [
+        el("span", { class: "trend-title", text: "12-month trend" }),
+        el("div", { class: "segments" }, segments),
+      ]),
+      chart.node,
+      trendRead,
+    ]);
+
     const error = el("div", { class: "error", hidden: "" });
-    card.append(glow, error, chips, summary);
+    card.append(glow, error, chips, summary, trendNode);
 
     // Trailing-window strip; hidden entirely when the rolling_* sensors are absent.
     const rollingWindow = el("span", { class: "window" });
@@ -821,6 +1046,7 @@ class FuelUsageTrackerCard extends HTMLElement {
       big: { amount: bigAmount, unit: bigUnit, delta: bigDelta },
       spark,
       panels: panelBars,
+      trend: { node: chart.node, area: chart.area, line: chart.line, dots: chart.dots, read: trendRead },
       last: lastRefs,
       inputs,
       addButton,
@@ -866,7 +1092,7 @@ class FuelUsageTrackerCard extends HTMLElement {
     refs.big.unit.textContent = this._unit(bigState);
 
     const history = this._history(vehicle);
-    this._renderSpark(refs.spark, history);
+    this._drawBars(refs.spark, history);
     const current = Number(bigState && bigState.state);
     const mean = history.length
       ? history.reduce((sum, row) => sum + row.avg_consumption, 0) / history.length
@@ -886,8 +1112,12 @@ class FuelUsageTrackerCard extends HTMLElement {
       const cost = Number(this._entity(vehicle, panel.cost.key)?.state);
       const base = panel.cost.period === "month" ? rollingCost / 12 : rollingCost;
       const share = Number.isFinite(cost) && base > 0 ? Math.min(100, (cost / base) * 100) : 0;
-      refs.panels[panel.cost.key].style.width = `${share}%`;
+      const progress = refs.panels[panel.cost.key];
+      progress.fill.style.strokeDashoffset = String((2 * Math.PI * 15 * (1 - share / 100)).toFixed(2));
+      progress.label.textContent = share ? `${Math.round(share)}%` : "";
     }
+
+    this._renderTrend(vehicle);
 
     const last = this._entity(vehicle, "last_fill");
     const attrs = (last && last.attributes) || {};
@@ -1132,6 +1362,9 @@ class FuelUsageTrackerCard extends HTMLElement {
 
   _setError(message) {
     this._errorIsNotice = false;
+    this._trendIndex = 0;
+    this._trendPick = null;
+    this._trendRows = [];
     this._error = message || null;
     this._renderError();
   }

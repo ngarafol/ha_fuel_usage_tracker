@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.12.0] - 2026-11-23
+
+### Added
+
+* **12-month trend chart** under the period cards: an SVG area + line over the
+  monthly history, a segmented control to switch between L/100 km, cost and
+  distance, and a pointer/tap read-out of the month under the cursor.
+* **Bar mini-chart** in the glow header (monthly cost) instead of the line
+  sparkline.
+* **Share rings** on the *This month* / *This year* panels: the period's cost
+  against the usual one, percentage inside the ring. The flat bars they replace
+  are gone.
+
+### Changed
+
+* Chips are tighter and show their unit with a small gap; the ring sits in the
+  panel head so the value column keeps its full width.
+
 ## [0.11.0] - 2026-11-23
 
 ### Changed
@@ -455,6 +473,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.12.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.12.0
 [0.11.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.11.0
 [0.10.3]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.10.3
 [0.10.2]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.10.2
