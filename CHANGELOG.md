@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.13.3] - 2026-11-23
+
+### Changed
+
+* The card module URL now carries a **boot id** (`?v=0.13.3&b=1a2b3c4d`, new on
+  every Home Assistant start) in addition to the version. A browser or
+  service-worker cache can therefore never answer the request from an old — or
+  broken — entry, which is what kept an old card (or a missing card) alive after
+  an update.
+
 ## [0.13.2] - 2026-11-23
 
 ### Changed
@@ -515,6 +525,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.13.3]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.3
 [0.13.2]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.2
 [0.13.1]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.1
 [0.13.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.0

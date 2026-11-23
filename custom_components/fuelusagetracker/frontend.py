@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from uuid import uuid4
 
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
@@ -55,7 +56,11 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     # network panel. The static path stays CARD_URL; static serving ignores the query.
     integration = await async_get_integration(hass, DOMAIN)
     version = str(integration.version) if integration.version else ""
-    url = f"{CARD_URL}?v={version}" if version else CARD_URL
+    # The boot id makes the URL unique per Home Assistant start: no browser or
+    # service-worker cache can ever answer it from an old (or broken) entry, so
+    # a stale 304 can no longer keep an old card alive.
+    boot = uuid4().hex[:8]
+    url = f"{CARD_URL}?v={version}&b={boot}" if version else f"{CARD_URL}?b={boot}"
     add_extra_js_url(hass, url)
     # Both loading paths use the versioned URL: a fresh query string is the only
     # URL a stale cache cannot answer from an old entry.
