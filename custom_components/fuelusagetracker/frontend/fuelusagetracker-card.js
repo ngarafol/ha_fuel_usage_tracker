@@ -1625,17 +1625,48 @@ function discoverVehicles(hass) {
   return [...vehicles.values()];
 }
 
-if (!customElements.get(CARD_TAG)) {
-  customElements.define(CARD_TAG, FuelUsageTrackerCard);
+/** Register in whatever registry is current; `customElements` is read live. */
+function defineCard() {
+  if (customElements.get(CARD_TAG)) return;
+  try {
+    customElements.define(CARD_TAG, FuelUsageTrackerCard);
+  } catch (err) {
+    console.error("[fuelusagetracker-card] could not define the element", err);
+  }
 }
 
-window.customCards = window.customCards || [];
-if (!window.customCards.some((card) => card.type === CARD_TAG)) {
-  window.customCards.push({
-    type: CARD_TAG,
-    name: "Fuel Usage Tracker",
-    description:
-      "Refuelling summary and fill-up log for a vehicle tracked by Fuel Usage Tracker.",
-    preview: true,
-  });
+/** Advertise the card in the picker; idempotent. */
+function advertiseCard() {
+  window.customCards = window.customCards || [];
+  if (!window.customCards.some((card) => card.type === CARD_TAG)) {
+    window.customCards.push({
+      type: CARD_TAG,
+      name: "Fuel Usage Tracker",
+      description:
+        "Refuelling summary and fill-up log for a vehicle tracked by Fuel Usage Tracker.",
+      preview: true,
+    });
+  }
+}
+
+defineCard();
+advertiseCard();
+
+// Home Assistant 2026.10+ installs @webcomponents/scoped-custom-element-registry
+// during boot and swaps window.customElements for a scoped registry. A module that
+// ran before the swap defined its element in the previous registry, and the app then
+// cannot find it ("Custom element does not exist", card missing from the picker).
+// The app sets window.__haScopedRegistryReady when that happens, so keep defining
+// into the current registry until it is in the one the app uses.
+if (typeof window !== "undefined") {
+  let attempts = 0;
+  const settle = () => {
+    defineCard();
+    advertiseCard();
+    attempts += 1;
+    if (attempts > 40 || (window.__haScopedRegistryReady && customElements.get(CARD_TAG))) {
+      clearInterval(timer);
+    }
+  };
+  const timer = setInterval(settle, 250);
 }

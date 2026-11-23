@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.13.6] - 2026-11-23
+
+### Fixed
+
+* **Home Assistant 2026.10+ compatibility (scoped custom element registry).**
+  HA now installs `@webcomponents/scoped-custom-element-registry` during boot
+  and swaps `window.customElements` for a scoped registry. A card module that
+  ran before that swap defined its element in the previous registry, so the app
+  could not find it: "Custom element does not exist" and no entry in the card
+  picker — exactly the symptom that broke after an HA update (the same class of
+  bug as JellyHA #56). The card now re-registers into whatever registry is
+  current until the app signals `window.__haScopedRegistryReady`, and advertises
+  itself in `window.customCards` at the same time.
+
 ## [0.13.5] - 2026-11-23
 
 ### Fixed
@@ -550,6 +564,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.13.6]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.6
 [0.13.5]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.5
 [0.13.4]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.4
 [0.13.3]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.3

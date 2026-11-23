@@ -244,6 +244,10 @@ picker. It must:
   period panels with a share ring, and a history block (four mini sparklines plus
   a trend chart with series and 12M/24M range switchers) reading the `months`
   payload,
+* register the element in whatever registry is current and re-register until Home
+  Assistant signals `window.__haScopedRegistryReady` (HA 2026.10+ swaps in the
+  scoped custom element registry at boot; a module that ran earlier would define
+  into the previous registry and the card would vanish from the dashboard),
 * read stats from entities via the `key` attribute (never from guessed entity ids),
 * surface **every** sensor key somewhere (the headline number, a chip, the rolling strip, a period
   table row, a last-fill row or the fill-up list); a key the card never renders
