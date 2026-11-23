@@ -56,6 +56,21 @@ text = re.sub(r'(const CARD_BUILD = ")[^"]*(")', rf"\g<1>{sys.argv[1]}\g<2>", te
 card.write_text(text, encoding="utf-8")
 PY
 
+
+# The card is an ES module: duplicate top-level declarations are a SyntaxError
+# there (they are legal in a classic script), so node --check on the .js is not
+# enough. Parse a .mjs copy before tagging.
+if command -v node >/dev/null 2>&1; then
+  tmp_mjs="$(mktemp -t cardXXXXXX).mjs"
+  cp custom_components/fuelusagetracker/frontend/fuelusagetracker-card.js "$tmp_mjs"
+  if ! node --check "$tmp_mjs"; then
+    echo "error: the card does not parse as an ES module" >&2
+    rm -f "$tmp_mjs"
+    exit 1
+  fi
+  rm -f "$tmp_mjs"
+fi
+
 git add "$manifest" CHANGELOG.md custom_components/fuelusagetracker/frontend/fuelusagetracker-card.js
 if ! git diff --cached --quiet; then
   git commit -q -m "chore: release ${version}"

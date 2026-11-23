@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.13.7] - 2026-11-23
+
+### Fixed
+
+* **The real cause of "Custom element does not exist" since 0.13.0**: the card
+  module contained a duplicated `ring()` / `trendChart()` / `sparkline()`
+  block. Duplicate top-level function declarations are legal in a classic
+  script (so `node --check` and the preview passed) but a **SyntaxError in an ES
+  module** — which is how Home Assistant loads the card:
+  `SyntaxError: Identifier 'ring' has already been declared`. The module never
+  executed, so the element was never defined and the card never appeared.
+  The duplicates are gone (one declaration each).
+
+### Added
+
+* `scripts/release.sh` now parses a `.mjs` copy of the card before tagging and
+  refuses to release when it is not valid as an ES module — the check that would
+  have caught this.
+
 ## [0.13.6] - 2026-11-23
 
 ### Fixed
@@ -564,6 +583,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.13.7]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.7
 [0.13.6]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.6
 [0.13.5]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.5
 [0.13.4]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.4
