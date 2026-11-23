@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.13.1] - 2026-11-23
+
+### Fixed
+
+* "Custom element does not exist: fuelusagetracker-card" after an update: the
+  card is loaded twice on purpose now. The extra frontend module keeps the
+  versioned URL (`?v=…`, busts caches) and the **dashboard resource uses the
+  stable, unversioned URL**, so a client that cached a broken response for a
+  versioned URL still gets the card from the other path. The file is served
+  with no-cache headers, so freshness never depended on the query.
+
 ## [0.13.0] - 2026-11-23
 
 ### Added
@@ -493,6 +504,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.13.1]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.1
 [0.13.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.0
 [0.12.1]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.12.1
 [0.12.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.12.0
