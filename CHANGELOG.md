@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.13.5] - 2026-11-23
+
+### Fixed
+
+* **One registration per start, and stale resources are cleaned up.** The
+  per-start URL (0.13.4) made every restart create a *new* dashboard resource
+  while the old one stayed behind and 404'd; Lovelace aborts the whole resource
+  load on a failed import, so the element never got defined — "Custom element
+  does not exist" and no card in the picker, even though the file was served
+  fine (verified: 200, 67 KB, current build). Two vehicles also registered two
+  boot URLs concurrently (the guard was set after the first await).
+  Now the guard is claimed before any await and the resource is matched by path
+  prefix: one entry, updated in place, all stale ones deleted.
+
 ## [0.13.4] - 2026-11-23
 
 ### Changed
@@ -536,6 +550,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.13.5]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.5
 [0.13.4]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.4
 [0.13.3]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.3
 [0.13.2]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.2

@@ -48,6 +48,9 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     # kept the previous card alive — or made the module fail to load entirely.
     boot = uuid4().hex[:8]
     boot_url = f"/{DOMAIN}/fuelusagetracker-card-{boot}.js"
+    # Claim the slot before the first await so concurrent entries cannot both
+    # register (that put two boot URLs in the index).
+    hass.data[DATA_CARD_REGISTERED] = boot_url
     await hass.http.async_register_static_paths(
         [
             # Stable alias: user-added resources and old links keep working.
@@ -55,8 +58,6 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
             StaticPathConfig(boot_url, str(CARD_FILE), False),
         ]
     )
-    # Set after registration so a failure retries on the next entry.
-    hass.data[DATA_CARD_REGISTERED] = boot_url
     add_extra_js_url(hass, boot_url)
     await _async_register_resource(hass, boot_url)
 
@@ -84,16 +85,26 @@ async def _async_register_resource(hass: HomeAssistant, url: str) -> None:
     try:
         if not getattr(resources, "loaded", True):
             await resources.async_load()
-        base = url.split("?")[0]
+        prefix = f"/{DOMAIN}/fuelusagetracker-card"
+        current = None
+        stale = []
         for item in resources.async_items():
-            if str(item.get("url", "")).split("?")[0] == base:
-                if item.get("url") != url:
-                    await resources.async_update_item(item["id"], {"url": url})
-                    _LOGGER.info("Updated the %s dashboard resource to %s", DOMAIN, url)
+            base = str(item.get("url", "")).split("?")[0]
+            if base == CARD_URL or base.startswith(prefix):
+                if current is None:
+                    current = item
                 else:
-                    _LOGGER.debug("The %s dashboard resource is already current", DOMAIN)
-                return
-        await resources.async_create_item({"res_type": "module", "url": url})
-        _LOGGER.info("Registered the %s card as a dashboard resource: %s", DOMAIN, url)
+                    stale.append(item["id"])
+        for item_id in stale:
+            await resources.async_delete_item(item_id)
+            _LOGGER.info("Removed a stale %s dashboard resource", DOMAIN)
+        if current is None:
+            await resources.async_create_item({"res_type": "module", "url": url})
+            _LOGGER.info("Registered the %s card as a dashboard resource: %s", DOMAIN, url)
+        elif current.get("url") != url:
+            await resources.async_update_item(current["id"], {"url": url})
+            _LOGGER.info("Updated the %s dashboard resource to %s", DOMAIN, url)
+        else:
+            _LOGGER.debug("The %s dashboard resource is already current", DOMAIN)
     except Exception:  # noqa: BLE001 - a resource hiccup must not block setup
         _LOGGER.warning("Could not register the %s dashboard resource", DOMAIN, exc_info=True)
