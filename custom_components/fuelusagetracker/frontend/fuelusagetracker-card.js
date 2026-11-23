@@ -9,7 +9,7 @@
 
 const CARD_TAG = "fuelusagetracker-card";
 /** Kept in sync with manifest.json by scripts/release.sh; logged for cache hunts. */
-const CARD_BUILD = "0.13.5";
+const CARD_BUILD = "0.13.6";
 const DOMAIN = "fuelusagetracker";
 
 /**
