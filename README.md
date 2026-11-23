@@ -288,10 +288,11 @@ vehicle's initial), the name and fuel/engine line, the headline average consumpt
 large number with its 12-month sparkline and a "vs 12-month" delta, and — when
 more than one vehicle exists — one chip per vehicle (tap to switch). Below it comes a row of glass
 chips for every other figure, and *This month* / *This year* as two tinted panels
-whose ring shows the period's cost against the usual one. Under them a
-**12-month trend chart** (area + line, switchable between L/100 km, cost and
-distance) plots the monthly history and reports the tapped month. No grid of
-boxes.
+whose ring shows the period's cost against the usual one. Under them a **history block**: four
+mini sparklines (L/100 km, cost, distance, price/litre, each with the latest
+value and its change) and a **trend chart** (area + line, switchable between
+L/100 km, cost and distance, 12 or 24 months) that reports the tapped month. No
+grid of boxes.
 
 The card uses only Home Assistant theme variables (plus a gradient from
 `--primary-color`), so it follows your theme in light and dark mode; `backdrop-filter`

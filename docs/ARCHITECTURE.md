@@ -241,8 +241,9 @@ picker. It must:
 
 * open with the glow header (avatar, name, headline average consumption, 12-month
   bar mini-chart and the vs-12-month delta), a row of chips for the rest, two
-  period panels with a share ring, and a 12-month trend chart with a series
-  switcher reading the `months` payload,
+  period panels with a share ring, and a history block (four mini sparklines plus
+  a trend chart with series and 12M/24M range switchers) reading the `months`
+  payload,
 * read stats from entities via the `key` attribute (never from guessed entity ids),
 * surface **every** sensor key somewhere (the headline number, a chip, the rolling strip, a period
   table row, a last-fill row or the fill-up list); a key the card never renders

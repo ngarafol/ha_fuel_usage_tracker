@@ -53,6 +53,14 @@ const TREND_SERIES = [
   { key: "distance", label: "Distance", digits: 0, unit: "km" },
 ];
 
+/** Small history sparklines: the four numbers that move month to month. */
+const MINI_SERIES = [
+  { key: "avg_consumption", label: "L/100km", digits: 2 },
+  { key: "cost", label: "Cost", digits: 2, money: true },
+  { key: "distance", label: "Distance", digits: 0 },
+  { key: "price", label: "Price / L", digits: 3, money: true },
+];
+
 const ROLLING = [
   { key: "rolling_distance", label: "Distance", digits: 0 },
   { key: "rolling_liters", label: "Litres", digits: 2 },
@@ -160,7 +168,20 @@ const STYLES = `
   .ring .ring-track { stroke: rgba(var(--rgb-primary-color, 3, 169, 244), .18); }
   .ring .ring-fill { stroke: var(--primary-color); stroke-linecap: round; transition: stroke-dashoffset .5s ease; }
   .ring-label { position: absolute; inset: 0; display: grid; place-items: center; font-size: .56rem; font-weight: 600; color: var(--primary-color); }
-  /* 12-month chart: area + line + grid, with a segmented series control. */
+  /* History: a row of mini sparklines, then the bigger chart. */
+  .history { padding: 14px 16px 12px; }
+  .history-head { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .mini-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .mini-card { min-width: 0; padding: 8px 10px 6px; border-radius: 12px;
+    background: rgba(var(--rgb-primary-color, 3, 169, 244), .08);
+    border: 1px solid rgba(var(--rgb-primary-color, 3, 169, 244), .18); }
+  .mini-label { font-size: .6rem; letter-spacing: .06em; text-transform: uppercase; color: var(--secondary-text-color); }
+  .mini-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; }
+  .mini-value { font-size: .92rem; color: var(--primary-text-color); }
+  .mini { flex: 0 0 auto; width: 62px; height: 26px; color: var(--primary-color); }
+  .mini .mini-area { fill: rgba(var(--rgb-primary-color, 3, 169, 244), .20); }
+  .mini .mini-line { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  @container (max-width: 519px) { .mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .trend { padding: 4px 16px 12px; }
   .trend-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
   .trend-title { font-weight: 500; color: var(--primary-text-color); }
@@ -307,6 +328,22 @@ function trendChart() {
   return { node: svg, area, line, dots, hit };
 }
 
+/** Tiny sparkline for one history metric. */
+function miniChart() {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "mini");
+  svg.setAttribute("viewBox", "0 0 62 26");
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("aria-hidden", "true");
+  const area = document.createElementNS(ns, "path");
+  area.setAttribute("class", "mini-area");
+  const line = document.createElementNS(ns, "path");
+  line.setAttribute("class", "mini-line");
+  svg.append(area, line);
+  return { node: svg, area, line };
+}
+
 /** Plain svg container for the header's 12-month bar mini-chart. */
 function barChart() {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -407,6 +444,7 @@ class FuelUsageTrackerCard extends HTMLElement {
     this._trendIndex = 0;
     this._trendPick = null;
     this._trendRows = [];
+    this._trendRange = 12;
   }
 
   static getStubConfig(hass) {
@@ -501,7 +539,7 @@ class FuelUsageTrackerCard extends HTMLElement {
     const state = this._entity(vehicle, "month_cost");
     const rows = (state && state.attributes && state.attributes.months) || [];
     return rows
-      .slice(0, 12)
+      .slice(0, 24)
       .reverse()
       .map((row) => ({
         period: String(row.period || ""),
@@ -511,6 +549,69 @@ class FuelUsageTrackerCard extends HTMLElement {
         avg_consumption: Number(row.avg_consumption),
       }))
       .filter((row) => row.period);
+  }
+
+  /** Pull one history metric out of a month row (price is derived). */
+  _seriesValue(row, series) {
+    if (series.key === "price") return row.liters > 0 ? row.cost / row.liters : NaN;
+    return row[series.key];
+  }
+
+  /** Draw one mini sparkline (area + line) from a list of values. */
+  _drawMini(chart, values) {
+    const points = values.filter((value) => Number.isFinite(value));
+    if (points.length < 2) {
+      chart.line.setAttribute("d", "");
+      chart.area.setAttribute("d", "");
+      return;
+    }
+    const WIDTH = 62;
+    const HEIGHT = 26;
+    const PAD = 2;
+    const min = Math.min(...points);
+    const span = Math.max(...points) - min || 1;
+    const mapped = points.map((value, index) => [
+      PAD + (index / (points.length - 1)) * (WIDTH - PAD * 2),
+      HEIGHT - PAD - ((value - min) / span) * (HEIGHT - PAD * 2),
+    ]);
+    const line = mapped
+      .map(([x, y], index) => `${index ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`)
+      .join(" ");
+    const last = mapped[mapped.length - 1];
+    chart.line.setAttribute("d", line);
+    chart.area.setAttribute("d", `${line} L${last[0].toFixed(1)},${HEIGHT} L${mapped[0][0].toFixed(1)},${HEIGHT} Z`);
+  }
+
+  /** History block: four mini sparklines plus the bigger trend chart. */
+  _renderHistory(vehicle) {
+    const refs = this._refs.minis;
+    const rows = this._history(vehicle).slice(-12);
+    const currency = this._currency(vehicle);
+    for (const series of MINI_SERIES) {
+      const ref = refs && refs[series.key];
+      if (!ref) continue;
+      const values = rows.map((row) => this._seriesValue(row, series));
+      this._drawMini(ref.chart, values);
+      const usable = values.filter((value) => Number.isFinite(value));
+      const last = usable[usable.length - 1];
+      const previous = usable[usable.length - 2];
+      ref.value.textContent = Number.isFinite(last)
+        ? series.money
+          ? this._money(last, currency)
+          : this._number(last, series.digits)
+        : "-";
+      const diff = Number.isFinite(last) && Number.isFinite(previous) ? last - previous : null;
+      if (diff === null) {
+        ref.delta.textContent = "";
+        ref.delta.className = "mini-delta";
+      } else {
+        ref.delta.textContent = `${diff > 0 ? "▲" : "▼"} ${
+          series.money ? this._money(Math.abs(diff), currency) : this._number(Math.abs(diff), series.digits)
+        }`;
+        ref.delta.className = "mini-delta";
+      }
+    }
+    this._renderTrend(vehicle);
   }
 
   /** The glow header's 12-month cost bars; hidden while there is nothing to plot. */
@@ -544,7 +645,10 @@ class FuelUsageTrackerCard extends HTMLElement {
   _renderTrend(vehicle) {
     const refs = this._refs.trend;
     const series = TREND_SERIES[this._trendIndex] || TREND_SERIES[0];
-    const rows = this._history(vehicle).filter((row) => Number.isFinite(row[series.key]));
+    const range = this._trendRange || 12;
+    const rows = this._history(vehicle)
+      .slice(-range)
+      .filter((row) => Number.isFinite(row[series.key]));
     this._trendRows = rows;
     if (rows.length < 2) {
       refs.node.style.display = "none";
@@ -814,6 +918,7 @@ class FuelUsageTrackerCard extends HTMLElement {
       );
     }
 
+    const miniRefs = {};
     const summary = el("div", { class: "periods-summary" });
     const panelBars = {};
     for (const panel of PERIOD_PANELS) {
@@ -841,7 +946,7 @@ class FuelUsageTrackerCard extends HTMLElement {
           this._trendIndex = index;
           this._trendPick = null;
           segments.forEach((node, i) => node.setAttribute("aria-pressed", String(i === index)));
-          this._renderTrend(vehicle);
+          this._renderHistory(vehicle);
         },
       })
     );
@@ -852,21 +957,47 @@ class FuelUsageTrackerCard extends HTMLElement {
       if (!box.width || this._trendRows.length < 2) return;
       const ratio = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
       this._trendPick = Math.round(ratio * (this._trendRows.length - 1));
-      this._renderTrend(vehicle);
+      this._renderHistory(vehicle);
     };
     chart.hit.addEventListener("pointerdown", pick);
     chart.hit.addEventListener("pointermove", pick);
-    const trendNode = el("div", { class: "trend" }, [
-      el("div", { class: "trend-head" }, [
-        el("span", { class: "trend-title", text: "12-month trend" }),
+    const ranges = [12, 24].map((months) =>
+      el("button", {
+        type: "button",
+        "aria-pressed": months === this._trendRange ? "true" : "false",
+        text: months === 24 ? "24M" : "12M",
+        onclick: () => {
+          this._trendRange = months;
+          this._trendPick = null;
+          ranges.forEach((node, i) => node.setAttribute("aria-pressed", String([12, 24][i] === months)));
+          this._renderHistory(vehicle);
+        },
+      })
+    );
+    const minis = MINI_SERIES.map((series) => {
+      const value = el("span", { class: "mini-value" });
+      const delta = el("span", { class: "mini-delta" });
+      const mini = miniChart();
+      miniRefs[series.key] = { chart: mini, value, delta, series };
+      return el("div", { class: "mini-card" }, [
+        el("span", { class: "mini-label", text: series.label }),
+        el("div", { class: "mini-row" }, [value, mini.node]),
+        delta,
+      ]);
+    });
+    const historyNode = el("div", { class: "history" }, [
+      el("div", { class: "history-head" }, [
+        el("span", { class: "trend-title", text: "History" }),
         el("div", { class: "segments" }, segments),
+        el("div", { class: "segments" }, ranges),
       ]),
+      el("div", { class: "mini-grid" }, minis),
       chart.node,
       trendRead,
     ]);
 
     const error = el("div", { class: "error", hidden: "" });
-    card.append(glow, error, chips, summary, trendNode);
+    card.append(glow, error, chips, summary, historyNode);
 
     // Trailing-window strip; hidden entirely when the rolling_* sensors are absent.
     const rollingWindow = el("span", { class: "window" });
@@ -995,6 +1126,7 @@ class FuelUsageTrackerCard extends HTMLElement {
       spark,
       panels: panelBars,
       trend: { node: chart.node, area: chart.area, line: chart.line, dots: chart.dots, read: trendRead },
+      minis: miniRefs,
       last: lastRefs,
       inputs,
       addButton,
@@ -1065,7 +1197,7 @@ class FuelUsageTrackerCard extends HTMLElement {
       progress.label.textContent = share ? `${Math.round(share)}%` : "";
     }
 
-    this._renderTrend(vehicle);
+    this._renderHistory(vehicle);
 
     const last = this._entity(vehicle, "last_fill");
     const attrs = (last && last.attributes) || {};
@@ -1313,6 +1445,7 @@ class FuelUsageTrackerCard extends HTMLElement {
     this._trendIndex = 0;
     this._trendPick = null;
     this._trendRows = [];
+    this._trendRange = 12;
     this._error = message || null;
     this._renderError();
   }
