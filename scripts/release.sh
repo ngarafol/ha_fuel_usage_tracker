@@ -47,9 +47,16 @@ new, count = re.subn(r'("version":\s*")[^"]*(")', rf"\g<1>{sys.argv[1]}\g<2>", t
 if count != 1:
     raise SystemExit("manifest.json has no \"version\" key")
 path.write_text(new, encoding="utf-8")
+
+# Keep the card's build marker in sync so the loaded build is visible in the
+# browser console during cache hunts.
+card = pathlib.Path("custom_components/fuelusagetracker/frontend/fuelusagetracker-card.js")
+text = card.read_text(encoding="utf-8")
+text = re.sub(r'(const CARD_BUILD = ")[^"]*(")', rf"\g<1>{sys.argv[1]}\g<2>", text, count=1)
+card.write_text(text, encoding="utf-8")
 PY
 
-git add "$manifest" CHANGELOG.md
+git add "$manifest" CHANGELOG.md custom_components/fuelusagetracker/frontend/fuelusagetracker-card.js
 if ! git diff --cached --quiet; then
   git commit -q -m "chore: release ${version}"
 fi

@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.13.2] - 2026-11-23
+
+### Changed
+
+* The card logs its build (`[fuelusagetracker-card] build 0.13.2`) on load, so it
+  is obvious in the browser console which file the client actually runs; the
+  release script keeps that marker in sync with `manifest.json`.
+* Both loading paths (extra frontend module and dashboard resource) use the
+  versioned URL again — a fresh query string is the only URL a stale service
+  worker or browser cache cannot answer from an old entry.
+
 ## [0.13.1] - 2026-11-23
 
 ### Fixed
@@ -504,6 +515,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.13.2]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.2
 [0.13.1]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.1
 [0.13.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.0
 [0.12.1]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.12.1

@@ -8,6 +8,8 @@
  */
 
 const CARD_TAG = "fuelusagetracker-card";
+/** Kept in sync with manifest.json by scripts/release.sh; logged for cache hunts. */
+const CARD_BUILD = "0.13.1";
 const DOMAIN = "fuelusagetracker";
 
 /**
@@ -430,6 +432,8 @@ function sparkline() {
   svg.append(defs, area, line, dot);
   return { node: svg, area, line, dot };
 }
+
+console.info("[fuelusagetracker-card] build", CARD_BUILD);
 
 class FuelUsageTrackerCard extends HTMLElement {
   constructor() {

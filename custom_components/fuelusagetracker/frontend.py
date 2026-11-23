@@ -57,15 +57,13 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     version = str(integration.version) if integration.version else ""
     url = f"{CARD_URL}?v={version}" if version else CARD_URL
     add_extra_js_url(hass, url)
-    # The dashboard resource deliberately uses the stable URL: it is a second,
-    # independent loading path, so a client that cached a bad response for the
-    # versioned URL still gets the card (the file is served with no-cache
-    # headers, so freshness does not depend on the query).
-    await _async_register_resource(hass, CARD_URL)
+    # Both loading paths use the versioned URL: a fresh query string is the only
+    # URL a stale cache cannot answer from an old entry.
+    await _async_register_resource(hass, url)
 
 
 async def _async_register_resource(hass: HomeAssistant, url: str) -> None:
-    """Register the card as a Lovelace resource as well (stable URL).
+    """Register the card as a Lovelace resource as well.
 
     Dashboards load their resources explicitly, so this still works when a
     companion app serves a cached frontend shell that lacks the extra-module tag
