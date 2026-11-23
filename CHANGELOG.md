@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.12.1] - 2026-11-23
+
+### Fixed
+
+* Switching back to another vehicle did not work with more than two in the card:
+  the popup picker was clipped by the glow header and fought focus/rebuild, so
+  the second click landed on a stale menu. Replaced it with **one chip per
+  vehicle** in the header — a tap selects directly, no menu to open, close or
+  clip. Verified with three consecutive switches (Toyota → Passat → Toyota).
+
 ## [0.12.0] - 2026-11-23
 
 ### Added
@@ -473,6 +483,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.12.1]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.12.1
 [0.12.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.12.0
 [0.11.0]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.11.0
 [0.10.3]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.10.3

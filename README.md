@@ -286,7 +286,7 @@ Fuel Usage Tracker*).
 The card opens with a **glow header**: the vehicle avatar (the *Car image*, or the
 vehicle's initial), the name and fuel/engine line, the headline average consumption as a
 large number with its 12-month sparkline and a "vs 12-month" delta, and — when
-more than one vehicle exists — a pill picker. Below it comes a row of glass
+more than one vehicle exists — one chip per vehicle (tap to switch). Below it comes a row of glass
 chips for every other figure, and *This month* / *This year* as two tinted panels
 whose ring shows the period's cost against the usual one. Under them a
 **12-month trend chart** (area + line, switchable between L/100 km, cost and

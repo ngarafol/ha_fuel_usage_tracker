@@ -110,6 +110,12 @@ const STYLES = `
   .avatar-letter { font-size: 1.1rem; font-weight: 600; color: currentColor; }
   .avatar img[hidden], .avatar-letter[hidden] { display: none; }
   .glow-id { flex: 1 1 auto; min-width: 0; }
+  .vehicles { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; max-width: 55%; }
+  .vehicle { padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .45);
+    background: rgba(0, 0, 0, .18); color: inherit; font: inherit; font-size: .76rem; cursor: pointer;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vehicle:hover { background: rgba(0, 0, 0, .3); }
+  .vehicle[aria-pressed="true"] { background: rgba(255, 255, 255, .92); color: #063a52; border-color: transparent; }
   .glow-name { font-size: 1.15rem; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
   .glow-sub { font-size: .8rem; opacity: .85; overflow-wrap: anywhere; }
   .glow-big { position: relative; z-index: 1; margin-top: 14px; }
@@ -123,20 +129,6 @@ const STYLES = `
   .big-delta:empty { display: none; }
   .big-delta.up { background: rgba(231, 76, 60, .42); }
   .big-delta.down { background: rgba(46, 204, 113, .42); }
-  .picker { position: relative; z-index: 2; }
-  .picker-button { display: inline-flex; align-items: center; gap: 6px; max-width: 190px;
-    padding: 5px 10px 5px 12px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .45);
-    background: rgba(0, 0, 0, .28); color: inherit; font: inherit; font-size: .82rem; cursor: pointer;
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-  .picker-button:hover { background: rgba(0, 0, 0, .4); }
-  .picker-button .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .picker-menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 100%; padding: 4px; z-index: 3;
-    border-radius: 12px; border: 1px solid var(--divider-color); background: var(--card-background-color);
-    color: var(--primary-text-color); box-shadow: 0 10px 28px rgba(0, 0, 0, .4); }
-  .picker-option { display: block; width: 100%; padding: 7px 10px; border: 0; border-radius: 8px;
-    background: none; color: var(--primary-text-color); font: inherit; font-size: .85rem;
-    text-align: left; white-space: nowrap; cursor: pointer; }
-  .picker-option:hover, .picker-option[aria-selected="true"] { background: rgba(var(--rgb-primary-text-color, 33, 33, 33), .08); }
   /* Mushroom-style chips: glass, icon in the accent colour, label over value. */
   .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 0; }
   .chip { display: inline-flex; align-items: center; padding: 5px 11px; border-radius: 999px;
@@ -257,24 +249,6 @@ function field(label, input, isCheck = false) {
     el("span", { text: label }),
   ]);
   return node;
-}
-
-/** Inline decorative SVG node — needs the SVG namespace to render. */
-function caretIcon() {
-  const ns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", "0 0 10 6");
-  svg.setAttribute("width", "10");
-  svg.setAttribute("height", "6");
-  svg.setAttribute("aria-hidden", "true");
-  const path = document.createElementNS(ns, "path");
-  path.setAttribute("d", "M1 1l4 4 4-4");
-  path.setAttribute("fill", "none");
-  path.setAttribute("stroke", "currentColor");
-  path.setAttribute("stroke-width", "1.6");
-  path.setAttribute("stroke-linecap", "round");
-  svg.append(path);
-  return svg;
 }
 
 /** Donut ring: the share of the usual cost, with the percentage in the middle. */
@@ -806,48 +780,22 @@ class FuelUsageTrackerCard extends HTMLElement {
       ])
     );
     if (vehicles.length > 1) {
-      const menu = el("div", { class: "picker-menu", role: "listbox", hidden: "" });
-      for (const item of vehicles) {
-        menu.append(
-          el(
-            "button",
-            {
-              class: "picker-option",
+      // One chip per vehicle: a tap selects it, no hidden menu to fight focus.
+      glowTop.append(
+        el(
+          "div",
+          { class: "vehicles", role: "group", "aria-label": "Vehicles" },
+          vehicles.map((item) =>
+            el("button", {
+              class: "vehicle",
               type: "button",
-              role: "option",
-              "aria-selected": item.id === vehicle.id ? "true" : "false",
+              "aria-pressed": item.id === vehicle.id ? "true" : "false",
+              text: item.name,
               onclick: () => this._selectVehicle(item.id),
-            },
-            [el("span", { text: item.name })]
+            })
           )
-        );
-      }
-      const toggle = el("button", {
-        class: "picker-button",
-        type: "button",
-        "aria-haspopup": "listbox",
-        "aria-expanded": "false",
-        "aria-label": `Vehicle: ${vehicle.name}`,
-      }, [el("span", { class: "nm", text: vehicle.name }), caretIcon()]);
-      toggle.addEventListener("click", () => {
-        const open = menu.hidden;
-        menu.hidden = !open;
-        toggle.setAttribute("aria-expanded", String(open));
-      });
-      toggle.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") {
-          menu.hidden = true;
-          toggle.setAttribute("aria-expanded", "false");
-        }
-      });
-      const picker = el("div", { class: "picker" }, [toggle, menu]);
-      picker.addEventListener("focusout", (event) => {
-        if (!picker.contains(event.relatedTarget)) {
-          menu.hidden = true;
-          toggle.setAttribute("aria-expanded", "false");
-        }
-      });
-      glowTop.append(picker);
+        )
+      );
     }
 
     // One icon chip per remaining figure, then the two period cards.
