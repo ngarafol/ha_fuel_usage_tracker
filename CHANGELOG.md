@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.13.4] - 2026-11-23
+
+### Changed
+
+* The card is served under a **path that is new on every Home Assistant start**
+  (`/fuelusagetracker/fuelusagetracker-card-<boot>.js`), in addition to the
+  stable `/fuelusagetracker/fuelusagetracker-card.js` alias. Query-string cache
+  busting could still be answered by a poisoned cache entry (a 304 for the
+  module, leaving the element undefined and the card absent from the picker);
+  a new path cannot. Verified: both paths return 200 and the file on disk.
+
 ## [0.13.3] - 2026-11-23
 
 ### Changed
@@ -525,6 +536,7 @@ consumer, and no behaviour changed except the two removals listed below.
 * HA integration test suite (config flow, options flow, services, sensor states,
   consumption maths, storage round trip, translation parity).
 
+[0.13.4]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.4
 [0.13.3]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.3
 [0.13.2]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.2
 [0.13.1]: https://github.com/ngarafol/ha_fuel_usage_tracker/releases/tag/v0.13.1

@@ -14,7 +14,6 @@ from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.components.lovelace import LOVELACE_DATA
 from homeassistant.core import HomeAssistant
-from homeassistant.loader import async_get_integration
 
 from .const import DOMAIN
 
@@ -43,28 +42,23 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
         return
     if hass.data.get(DATA_CARD_REGISTERED):
         return
-    # Set before the first await so concurrent config entries cannot register twice.
-    hass.data[DATA_CARD_REGISTERED] = True
 
-    # cache_headers=False: the file is small and must never go stale in a browser.
-    await hass.http.async_register_static_paths(
-        [StaticPathConfig(CARD_URL, str(CARD_FILE), False)]
-    )
-    # The version in the URL is a cache buster: without it the companion apps (and
-    # browsers) happily keep the previous card JS after an update, which looks
-    # exactly like a broken card. It also makes the loaded version visible in the
-    # network panel. The static path stays CARD_URL; static serving ignores the query.
-    integration = await async_get_integration(hass, DOMAIN)
-    version = str(integration.version) if integration.version else ""
-    # The boot id makes the URL unique per Home Assistant start: no browser or
-    # service-worker cache can ever answer it from an old (or broken) entry, so
-    # a stale 304 can no longer keep an old card alive.
+    # A path that is new on every Home Assistant start: browsers and service
+    # workers cannot answer it from an old (or broken) cache entry, which is what
+    # kept the previous card alive — or made the module fail to load entirely.
     boot = uuid4().hex[:8]
-    url = f"{CARD_URL}?v={version}&b={boot}" if version else f"{CARD_URL}?b={boot}"
-    add_extra_js_url(hass, url)
-    # Both loading paths use the versioned URL: a fresh query string is the only
-    # URL a stale cache cannot answer from an old entry.
-    await _async_register_resource(hass, url)
+    boot_url = f"/{DOMAIN}/fuelusagetracker-card-{boot}.js"
+    await hass.http.async_register_static_paths(
+        [
+            # Stable alias: user-added resources and old links keep working.
+            StaticPathConfig(CARD_URL, str(CARD_FILE), False),
+            StaticPathConfig(boot_url, str(CARD_FILE), False),
+        ]
+    )
+    # Set after registration so a failure retries on the next entry.
+    hass.data[DATA_CARD_REGISTERED] = boot_url
+    add_extra_js_url(hass, boot_url)
+    await _async_register_resource(hass, boot_url)
 
 
 async def _async_register_resource(hass: HomeAssistant, url: str) -> None:
